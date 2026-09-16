@@ -1,0 +1,42 @@
+root = true
+
+[*]
+indent_style = space
+indent_size = 4
+end_of_line = crlf
+charset = utf-8
+trim_trailing_whitespace = true
+insert_final_newline = true
+
+[*.cs]
+# 命名慣例
+dotnet_naming_rule.interfaces_should_be_prefixed_with_i.severity = suggestion
+dotnet_naming_rule.interfaces_should_be_prefixed_with_i.symbols = interface
+dotnet_naming_rule.interfaces_should_be_prefixed_with_i.style = prefix_i
+dotnet_naming_symbols.interface.applicable_kinds = interface
+dotnet_naming_style.prefix_i.required_prefix = I
+dotnet_naming_style.prefix_i.capitalization = pascal_case
+
+dotnet_naming_rule.private_fields_should_be_camel_case_underscore.severity = suggestion
+dotnet_naming_rule.private_fields_should_be_camel_case_underscore.symbols = private_field
+dotnet_naming_rule.private_fields_should_be_camel_case_underscore.style = underscore_camel_case
+dotnet_naming_symbols.private_field.applicable_kinds = field
+dotnet_naming_symbols.private_field.applicable_accessibilities = private
+dotnet_naming_style.underscore_camel_case.required_prefix = _
+dotnet_naming_style.underscore_camel_case.capitalization = camel_case
+
+# using 排序與風格
+dotnet_sort_system_directives_first = true
+csharp_using_directive_placement = outside_namespace
+
+# 慣用寫法
+csharp_prefer_braces = true
+csharp_style_var_for_built_in_types = false
+csharp_style_var_when_type_is_apparent = true
+csharp_style_expression_bodied_methods = when_on_single_line
+
+[*.{json,yml,yaml}]
+indent_size = 2
+
+[*.cshtml]
+indent_size = 4
