@@ -31,13 +31,23 @@
 - [x] 建立測試專案骨架 `tests/ManTingEats.Tests`
 - [x] PRD 需求盤點與模組拆解（見 [docs/prd/mvp.md](../docs/prd/mvp.md)）
 - [x] ORM 選型：EF Core（見 ADR）、Entities（Employee/MenuItem/Order/OrderItem/Reservation）、`AppDbContext`、初版 Migration、DI 註冊
-- [ ] Menu / Order / Reservation / Reporting 的 Controller、Service、View 實作（下一步）
-- [ ] 店長登入（Auth）UI 與流程實作
+- [x] 首次實際執行 `dotnet ef database update`，資料表結構已落地
+- [x] 店長登入（Auth）：Cookie Authentication、`PasswordHasher<Employee>` 雜湊、啟動時種子 Manager 帳號（`SeedAdmin` 設定）
+- [x] Menu 模組 CRUD（新增/編輯/上下架，不支援硬刪除），`[Authorize]` 保護
+- [x] Order 模組：建單、加點/移除品項、結帳、作廢（狀態機 Open → Completed → Voided）
+- [x] Reservation 模組：新增訂位、依姓名/日期查詢
+- [x] 全站 UI/UX 第一輪優化：卡片化、狀態 badge、全域成功/錯誤訊息、高風險操作加確認對話框
+- [x] Report 模組：指定日期區間總營收、通路拆分、品項销售排行（今日/本週/本月快速篩選），僅計入已結帳訂單
+- [x] 完整 Docker Compose 驗證（`web`+`db`）：修正 `db` 服務缺少 volume 導致資料無持久化的問題，並補上具名 volume `mysql-data`
+- [x] 安全性複查修正：Cookie 硬化（HttpOnly/SecurePolicy/SameSite/有效期限）、登入失敗鎖定機制、Command 輸入長度上限驗證、資料庫改用最小權限帳號（非 root）
+
+> PRD MVP 五大模組（Auth/Menu/Order/Reservation/Reporting）均已實作並實機驗證。
 
 ## 已知待確認問題
 
 - 目前尚無 Repository/Service 層的實作，Controller 直接使用 `AppDbContext` 尚可行；待模組數量增加後視情況再抽出 Service 層，避免過早抽象。
-
+- Order 相關畫面（訂單詳情、加點）UI/UX 使用者反映仍有部分不順手之處，已做過一輪卡片化/badge/確認對話框優化，細節待後續再調整。
+- Cookie Authentication 的 DataProtection Key 未持久化，容器重啟會導致所有登入 session 失效（僅需重新登入，非資料遺失），待後續視需要掛載 volume 持久化。- 登入失敗鎖定機制目前以 `IMemoryCache` 實作（純記憶體，服務重啟會清除鎖定狀態），若未來多實例部署需改用分佈式快取（如 Redis）。
 ## 相關文件
 
 - [copilot-instructions.md](copilot-instructions.md) — 開發規範
