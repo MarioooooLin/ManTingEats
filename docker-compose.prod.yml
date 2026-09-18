@@ -1,0 +1,48 @@
+services:
+  web:
+    build: .
+    restart: unless-stopped
+    environment:
+      ASPNETCORE_ENVIRONMENT: Production
+      ConnectionStrings__DefaultConnection: "Server=db;Port=3306;Database=ManTingEatsDb;User=mantingeats_app;Password=${DB_APP_PASSWORD};"
+      SeedAdmin__Username: ${SEED_ADMIN_USERNAME}
+      SeedAdmin__Password: ${SEED_ADMIN_PASSWORD}
+    volumes:
+      - dataprotection-keys:/app/keys
+    depends_on:
+      - db
+
+  db:
+    image: mysql:8.0
+    restart: unless-stopped
+    environment:
+      MYSQL_ROOT_PASSWORD: ${DB_ROOT_PASSWORD}
+      MYSQL_DATABASE: ManTingEatsDb
+      # 應用程式連線用的最小權限帳號，僅授權於 ManTingEatsDb（由官方 image 自動建立）
+      MYSQL_USER: mantingeats_app
+      MYSQL_PASSWORD: ${DB_APP_PASSWORD}
+    volumes:
+      - mysql-data:/var/lib/mysql
+    # 正式環境不對外暴露資料庫連接埠，僅 web 服務透過 Compose 內部網路連線
+
+  caddy:
+    image: caddy:2
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      - "443:443"
+    environment:
+      DOMAIN: ${DOMAIN}
+      ACME_EMAIL: ${ACME_EMAIL}
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy-data:/data
+      - caddy-config:/config
+    depends_on:
+      - web
+
+volumes:
+  mysql-data:
+  dataprotection-keys:
+  caddy-data:
+  caddy-config:

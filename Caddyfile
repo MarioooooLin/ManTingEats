@@ -1,0 +1,4 @@
+{$DOMAIN} {
+	tls {$ACME_EMAIL}
+	reverse_proxy web:8080
+}

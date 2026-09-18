@@ -41,3 +41,6 @@ Thumbs.db
 
 # Docker
 docker-compose.override.yml
+
+# 正式環境備份檔
+backups/

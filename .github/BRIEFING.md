@@ -40,6 +40,8 @@
 - [x] Report 模組：指定日期區間總營收、通路拆分、品項销售排行（今日/本週/本月快速篩選），僅計入已結帳訂單
 - [x] 完整 Docker Compose 驗證（`web`+`db`）：修正 `db` 服務缺少 volume 導致資料無持久化的問題，並補上具名 volume `mysql-data`
 - [x] 安全性複查修正：Cookie 硬化（HttpOnly/SecurePolicy/SameSite/有效期限）、登入失敗鎖定機制、Command 輸入長度上限驗證、資料庫改用最小權限帳號（非 root）
+- [x] 正式環境部署設定：新增 `docker-compose.prod.yml`（web + db + Caddy 反向代理自動 HTTPS）、機密改用 `.env` 注入、DataProtection Key 持久化、`ForwardedHeaders` 中介軟體、資料庫備份腳本
+- [ ] 實際租用 VPS 主機與網域，於現場完成部署（防火牆規則、DNS 綁定、憑證申請驗證）並執行平板點餐實地演練
 
 > PRD MVP 五大模組（Auth/Menu/Order/Reservation/Reporting）均已實作並實機驗證。
 

@@ -4,6 +4,38 @@
 
 ---
 
+### [2026-09-18] 新增正式環境（VPS）部署設定
+
+**變更內容**
+
+- 新增 `docker-compose.prod.yml`：獨立的正式環境部署檔（`web` + `db` + `caddy`），與既有本機開發用 `docker-compose.yml` 分開維護，避免互相干擾。
+  - `db` 服務移除對外 port 映射（原開發檔的 `3306:3306` 僅保留於本機開發用檔案），僅供 `web` 透過 Compose 內部網路連線。
+  - `web`／`db` 機密資訊（DB 密碼、`SeedAdmin` 帳密、網域、ACME 信箱）改由 `.env`（不進版控，已被 `.gitignore` 的 `*.env` 規則排除）以環境變數注入，新增 `.env.example` 作為範本。
+  - `ASPNETCORE_ENVIRONMENT` 設為 `Production`。
+  - 新增 `caddy` 服務作為反向代理，綁定 80/443，透過 `Caddyfile` 自動向 Let's Encrypt 申請憑證並轉發至 `web:8080`。
+- 新增 `Caddyfile`，網域與憑證信箱皆透過 `{$DOMAIN}`/`{$ACME_EMAIL}` 環境變數帶入。
+- `Program.cs`：
+  - 新增 `AddDataProtection().PersistKeysToFileSystem(...)`，Key 目錄改為 `/app/keys`（可掛載 volume 持久化），解決容器重啟導致所有登入 session 失效的已知問題。
+  - 新增 `UseForwardedHeaders`（信任 `X-Forwarded-For`/`X-Forwarded-Proto`），確保 Caddy 終止 TLS 後，ASP.NET Core 仍能正確判斷原始請求為 HTTPS，讓 Cookie 的 `SecurePolicy = SameAsRequest` 正確生效、並避免 `UseHttpsRedirection` 造成的重導向問題。
+- `Dockerfile`：新增 `RUN mkdir -p /app/keys`，確保掛載 DataProtection Key volume 時沿用映像檔內既有目錄權限。
+- 新增 `scripts/backup-db.sh`：以 `mysqldump` 備份正式環境資料庫，僅保留最近 7 天備份，供 VPS 排程 cron 呼叫。
+- `.gitignore`：新增 `backups/` 排除規則。
+
+**決策原因**
+
+- 正式環境與本機開發環境分成兩份 compose 檔（而非用 override 疊加），避免 Compose 陣列型設定（如 `ports`）合併語意複雜、難以確保 DB port 確實被移除的風險。
+- 反向代理選用 Caddy 而非 Nginx + Certbot：Caddy 內建自動 HTTPS 憑證管理，設定檔更精簡，適合小型單店家專案降低維運複雜度。
+- DataProtection Key 目錄選在 `/app/keys`（沿用既有 `/app` 權限）而非容器內其他路徑，避免非 root 執行使用者對新掛載目錄無寫入權限的常見問題。
+
+**驗證結果**
+
+- `dotnet build`：成功，無編譯錯誤。
+- `docker compose -f docker-compose.prod.yml config --quiet`：語法驗證通過（未設定 `.env` 時僅出現預期的環境變數未設定警告）。
+- `docker compose -f docker-compose.yml config --quiet`：確認既有本機開發用設定未受影響，仍可正常解析。
+- 尚未在實體 VPS 上完整驗證（憑證申請、防火牆規則、DNS 綁定），待實際租用主機後於現場執行。
+
+---
+
 ### [2026-09-18] 安全性複查修正（OWASP Top 10 導向）
 
 **變更內容**
