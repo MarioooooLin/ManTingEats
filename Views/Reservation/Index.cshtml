@@ -1,0 +1,59 @@
+@model ManTingEats.Models.ReservationSearchViewModel
+@{
+    ViewData["Title"] = "訂位記錄";
+}
+
+<div class="page-header d-flex justify-content-between align-items-center">
+    <h1 class="mb-0">訂位記錄</h1>
+    <a asp-action="Create" class="btn btn-primary">+ 新增訂位</a>
+</div>
+
+<div class="card mb-4">
+    <div class="card-body">
+        <form asp-action="Index" method="get" class="row g-2 align-items-end">
+            <div class="col-auto">
+                <label class="form-label">姓名</label>
+                <input type="text" name="customerName" value="@Model.CustomerName" class="form-control" placeholder="搜尋姓名" />
+            </div>
+            <div class="col-auto">
+                <label class="form-label">日期</label>
+                <input type="date" name="date" value="@Model.Date?.ToString("yyyy-MM-dd")" class="form-control" />
+            </div>
+            <div class="col-auto">
+                <button type="submit" class="btn btn-outline-primary">查詢</button>
+                <a asp-action="Index" class="btn btn-outline-secondary">清除</a>
+            </div>
+        </form>
+    </div>
+</div>
+
+@if (Model.Results.Count == 0)
+{
+    <p class="text-muted">查無訂位記錄。</p>
+}
+else
+{
+    <div class="card">
+        <table class="table table-hover mb-0">
+            <thead>
+                <tr>
+                    <th>姓名</th>
+                    <th>電話</th>
+                    <th class="text-end">人數</th>
+                    <th>訂位時段</th>
+                </tr>
+            </thead>
+            <tbody>
+                @foreach (var reservation in Model.Results)
+                {
+                    <tr>
+                        <td>@reservation.CustomerName</td>
+                        <td>@reservation.PhoneNumber</td>
+                        <td class="text-end">@reservation.PartySize</td>
+                        <td>@reservation.ReservedAt.ToString("yyyy-MM-dd HH:mm")</td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+    </div>
+}

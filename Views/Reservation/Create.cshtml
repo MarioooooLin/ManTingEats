@@ -1,0 +1,46 @@
+@model ManTingEats.Models.Commands.CreateReservationCommand
+@{
+    ViewData["Title"] = "新增訂位";
+}
+
+<div class="page-header">
+    <h1>新增訂位</h1>
+</div>
+
+<div class="row">
+    <div class="col-md-5">
+        <div class="card">
+            <div class="card-body">
+                <form asp-action="Create" method="post">
+                    <div asp-validation-summary="ModelOnly" class="text-danger"></div>
+                    <div class="mb-3">
+                        <label asp-for="CustomerName" class="form-label"></label>
+                        <input asp-for="CustomerName" class="form-control" autofocus />
+                        <span asp-validation-for="CustomerName" class="text-danger"></span>
+                    </div>
+                    <div class="mb-3">
+                        <label asp-for="PhoneNumber" class="form-label"></label>
+                        <input asp-for="PhoneNumber" class="form-control" />
+                        <span asp-validation-for="PhoneNumber" class="text-danger"></span>
+                    </div>
+                    <div class="mb-3">
+                        <label asp-for="PartySize" class="form-label"></label>
+                        <input asp-for="PartySize" class="form-control" />
+                        <span asp-validation-for="PartySize" class="text-danger"></span>
+                    </div>
+                    <div class="mb-3">
+                        <label asp-for="ReservedAt" class="form-label"></label>
+                        <input asp-for="ReservedAt" class="form-control" type="datetime-local" />
+                        <span asp-validation-for="ReservedAt" class="text-danger"></span>
+                    </div>
+                    <button type="submit" class="btn btn-primary">儲存</button>
+                    <a asp-action="Index" class="btn btn-outline-secondary">取消</a>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+    <partial name="_ValidationScriptsPartial" />
+}
