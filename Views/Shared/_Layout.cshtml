@@ -1,4 +1,7 @@
-﻿<!DOCTYPE html>
+﻿@{
+    var currentController = ViewContext.RouteData.Values["controller"]?.ToString();
+}
+<!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="utf-8" />
@@ -21,11 +24,42 @@
                 <div class="navbar-collapse collapse d-sm-inline-flex justify-content-between">
                     <ul class="navbar-nav flex-grow-1">
                         <li class="nav-item">
-                            <a class="nav-link text-dark" asp-area="" asp-controller="Home" asp-action="Index">Home</a>
+                            <a class="nav-link text-dark @(currentController == "Home" ? "active" : "")" asp-area="" asp-controller="Home" asp-action="Index">Home</a>
                         </li>
-                        <li class="nav-item">
-                            <a class="nav-link text-dark" asp-area="" asp-controller="Home" asp-action="Privacy">Privacy</a>
-                        </li>
+                        @if (User.Identity?.IsAuthenticated == true)
+                        {
+                            <li class="nav-item">
+                                <a class="nav-link text-dark @(currentController == "Menu" ? "active" : "")" asp-area="" asp-controller="Menu" asp-action="Index">菜單管理</a>
+                            </li>
+                            <li class="nav-item">
+                                <a class="nav-link text-dark @(currentController == "Order" ? "active" : "")" asp-area="" asp-controller="Order" asp-action="Index">訂單</a>
+                            </li>
+                            <li class="nav-item">
+                                <a class="nav-link text-dark @(currentController == "Reservation" ? "active" : "")" asp-area="" asp-controller="Reservation" asp-action="Index">訂位記錄</a>
+                            </li>
+                            <li class="nav-item">
+                                <a class="nav-link text-dark @(currentController == "Report" ? "active" : "")" asp-area="" asp-controller="Report" asp-action="Index">營收報表</a>
+                            </li>
+                        }
+                    </ul>
+                    <ul class="navbar-nav">
+                        @if (User.Identity?.IsAuthenticated == true)
+                        {
+                            <li class="nav-item d-flex align-items-center me-2">
+                                <span class="nav-link text-dark">@User.Identity.Name</span>
+                            </li>
+                            <li class="nav-item">
+                                <form asp-controller="Account" asp-action="Logout" method="post">
+                                    <button type="submit" class="btn btn-link nav-link text-dark">登出</button>
+                                </form>
+                            </li>
+                        }
+                        else
+                        {
+                            <li class="nav-item">
+                                <a class="nav-link text-dark" asp-controller="Account" asp-action="Login">登入</a>
+                            </li>
+                        }
                     </ul>
                 </div>
             </div>
@@ -33,6 +67,7 @@
     </header>
     <div class="container">
         <main role="main" class="pb-3">
+            <partial name="_StatusMessage" />
             @RenderBody()
         </main>
     </div>

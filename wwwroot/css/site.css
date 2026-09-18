@@ -29,3 +29,25 @@ body {
 .form-floating > .form-control-plaintext:focus::placeholder, .form-floating > .form-control:focus::placeholder {
   text-align: start;
 }
+
+/* ManTingEats 後台樣式 */
+.navbar-nav .nav-link.active {
+  font-weight: 600;
+  color: var(--bs-primary) !important;
+}
+
+.page-header {
+  margin-bottom: 1.5rem;
+}
+
+.dashboard-card {
+  transition: box-shadow 0.15s ease-in-out;
+}
+
+.dashboard-card:hover {
+  box-shadow: 0 0.5rem 1rem rgba(0, 0, 0, 0.1);
+}
+
+.table > :not(caption) > * > * {
+  vertical-align: middle;
+}
