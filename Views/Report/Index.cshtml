@@ -1,0 +1,105 @@
+@model ManTingEats.Models.ReportViewModel
+@{
+    ViewData["Title"] = "營收報表";
+    var today = DateTime.Today;
+    var weekStart = today.AddDays(-(int)today.DayOfWeek + (today.DayOfWeek == DayOfWeek.Sunday ? -6 : 1));
+    var monthStart = new DateTime(today.Year, today.Month, 1);
+}
+
+<div class="page-header">
+    <h1>營收報表</h1>
+</div>
+
+<div class="card mb-4">
+    <div class="card-body">
+        <form asp-action="Index" method="get" class="row g-2 align-items-end mb-3">
+            <div class="col-auto">
+                <label class="form-label">開始日期</label>
+                <input type="date" name="start" value="@Model.StartDate.ToString("yyyy-MM-dd")" class="form-control" />
+            </div>
+            <div class="col-auto">
+                <label class="form-label">結束日期</label>
+                <input type="date" name="end" value="@Model.EndDate.ToString("yyyy-MM-dd")" class="form-control" />
+            </div>
+            <div class="col-auto">
+                <button type="submit" class="btn btn-primary">查詢</button>
+            </div>
+        </form>
+        <div class="btn-group">
+            <a class="btn btn-outline-secondary" asp-action="Index" asp-route-start="@today.ToString("yyyy-MM-dd")" asp-route-end="@today.ToString("yyyy-MM-dd")">今日</a>
+            <a class="btn btn-outline-secondary" asp-action="Index" asp-route-start="@weekStart.ToString("yyyy-MM-dd")" asp-route-end="@today.ToString("yyyy-MM-dd")">本週</a>
+            <a class="btn btn-outline-secondary" asp-action="Index" asp-route-start="@monthStart.ToString("yyyy-MM-dd")" asp-route-end="@today.ToString("yyyy-MM-dd")">本月</a>
+        </div>
+    </div>
+</div>
+
+<p class="text-muted">統計區間：@Model.StartDate.ToString("yyyy-MM-dd") ～ @Model.EndDate.ToString("yyyy-MM-dd")（僅計入已結帳訂單）</p>
+
+<div class="row g-3 mb-4">
+    <div class="col-md-4">
+        <div class="card h-100">
+            <div class="card-body">
+                <h6 class="text-muted">總營收</h6>
+                <p class="display-6 mb-0">$@Model.TotalRevenue.ToString("F2")</p>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-8">
+        <div class="card h-100">
+            <div class="card-header">通路營收拆分</div>
+            <div class="card-body">
+                @if (Model.ChannelBreakdown.Count == 0)
+                {
+                    <p class="text-muted mb-0">此區間無已結帳訂單。</p>
+                }
+                else
+                {
+                    <table class="table table-sm mb-0">
+                        <thead>
+                            <tr>
+                                <th>通路</th>
+                                <th class="text-end">金額</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @foreach (var channel in Model.ChannelBreakdown)
+                            {
+                                <tr>
+                                    <td>@channel.Channel.ToDisplayText()</td>
+                                    <td class="text-end">$@channel.Amount.ToString("F2")</td>
+                                </tr>
+                            }
+                        </tbody>
+                    </table>
+                }
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="card">
+    <div class="card-header">品項銷售排行（依金額排序）</div>
+    <table class="table table-hover mb-0">
+        <thead>
+            <tr>
+                <th>品項</th>
+                <th class="text-end">銷售數量</th>
+                <th class="text-end">銷售金額</th>
+            </tr>
+        </thead>
+        <tbody>
+            @if (Model.ItemRanking.Count == 0)
+            {
+                <tr><td colspan="3" class="text-muted text-center py-3">此區間無銷售資料</td></tr>
+            }
+            @foreach (var item in Model.ItemRanking)
+            {
+                <tr>
+                    <td>@item.MenuItemName</td>
+                    <td class="text-end">@item.Quantity</td>
+                    <td class="text-end">$@item.Amount.ToString("F2")</td>
+                </tr>
+            }
+        </tbody>
+    </table>
+</div>
