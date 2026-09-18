@@ -1,0 +1,134 @@
+@model ManTingEats.Models.OrderDetailsViewModel
+@{
+    var order = Model.Order;
+    ViewData["Title"] = $"訂單 #{order.Id}";
+    var badgeClass = order.Status switch
+    {
+        OrderStatus.Open => "bg-warning text-dark",
+        OrderStatus.Completed => "bg-success",
+        OrderStatus.Voided => "bg-secondary",
+        _ => "bg-secondary"
+    };
+}
+
+<div class="page-header d-flex justify-content-between align-items-center">
+    <h1 class="mb-0">訂單 #@order.Id</h1>
+    <span class="badge @badgeClass fs-6">@order.Status.ToDisplayText()</span>
+</div>
+
+<div class="card mb-4">
+    <div class="card-body">
+        <dl class="row mb-0">
+            <dt class="col-sm-2">通路</dt>
+            <dd class="col-sm-4">@order.Channel.ToDisplayText()</dd>
+            <dt class="col-sm-2">桌號</dt>
+            <dd class="col-sm-4">@(order.TableNumber ?? "-")</dd>
+            <dt class="col-sm-2">總金額</dt>
+            <dd class="col-sm-4 fs-5 fw-bold">$@order.TotalAmount.ToString("F2")</dd>
+            @if (order.Status == OrderStatus.Voided)
+            {
+                <dt class="col-sm-2">作廢原因</dt>
+                <dd class="col-sm-10 text-danger">@order.VoidReason（操作者：@order.VoidedByEmployee?.Username）</dd>
+            }
+        </dl>
+    </div>
+</div>
+
+<div class="card mb-4">
+    <div class="card-header">品項清單</div>
+    <table class="table table-hover mb-0">
+        <thead>
+            <tr>
+                <th>品項</th>
+                <th class="text-end">單價</th>
+                <th class="text-end">數量</th>
+                <th class="text-end">小計</th>
+                <th></th>
+            </tr>
+        </thead>
+        <tbody>
+            @if (order.Items.Count == 0)
+            {
+                <tr><td colspan="5" class="text-muted text-center py-3">尚未加點任何品項</td></tr>
+            }
+            @foreach (var item in order.Items)
+            {
+                <tr>
+                    <td>@item.MenuItem?.Name</td>
+                    <td class="text-end">$@item.UnitPrice.ToString("F2")</td>
+                    <td class="text-end">@item.Quantity</td>
+                    <td class="text-end">$@((item.UnitPrice * item.Quantity).ToString("F2"))</td>
+                    <td class="text-end">
+                        @if (order.Status == OrderStatus.Open)
+                        {
+                            <form asp-action="RemoveItem" method="post" class="d-inline" onsubmit="return confirm('確定要移除此品項？');">
+                                <input type="hidden" name="orderId" value="@order.Id" />
+                                <input type="hidden" name="orderItemId" value="@item.Id" />
+                                <button type="submit" class="btn btn-sm btn-outline-danger">移除</button>
+                            </form>
+                        }
+                    </td>
+                </tr>
+            }
+        </tbody>
+    </table>
+</div>
+
+@if (order.Status == OrderStatus.Open)
+{
+    <div class="card mb-4">
+        <div class="card-header">加點</div>
+        <div class="card-body">
+            @if (Model.ActiveMenuItems.Count == 0)
+            {
+                <p class="text-muted mb-0">目前沒有上架中的菜單品項，請先至菜單管理新增。</p>
+            }
+            else
+            {
+                <form asp-action="AddItem" method="post" class="row g-2 align-items-end">
+                    <input type="hidden" name="orderId" value="@order.Id" />
+                    <div class="col-auto">
+                        <label class="form-label">品項</label>
+                        <select name="MenuItemId" class="form-select">
+                            @foreach (var menuItem in Model.ActiveMenuItems)
+                            {
+                                <option value="@menuItem.Id">@menuItem.Category - @menuItem.Name（$@menuItem.Price.ToString("F2")）</option>
+                            }
+                        </select>
+                    </div>
+                    <div class="col-auto">
+                        <label class="form-label">數量</label>
+                        <input type="number" name="Quantity" value="1" min="1" class="form-control" style="width: 6rem;" />
+                    </div>
+                    <div class="col-auto">
+                        <button type="submit" class="btn btn-primary">加點</button>
+                    </div>
+                </form>
+            }
+        </div>
+    </div>
+
+    <form asp-action="Checkout" asp-route-id="@order.Id" method="post" onsubmit="return confirm('確定要結帳嗎？結帳後將無法再加點。');">
+        <button type="submit" class="btn btn-success btn-lg" @(order.Items.Count == 0 ? "disabled" : "")>結帳（應收 $@order.TotalAmount.ToString("F2")）</button>
+    </form>
+}
+
+@if (order.Status == OrderStatus.Completed)
+{
+    <div class="card border-danger">
+        <div class="card-header text-danger">作廢訂單</div>
+        <div class="card-body">
+            <form asp-action="Void" asp-route-id="@order.Id" method="post" class="row g-2 align-items-end" onsubmit="return confirm('確定要作廢此訂單？此操作將記錄稽核紀錄且無法復原。');">
+                <div class="col-auto flex-grow-1">
+                    <label class="form-label">作廢原因</label>
+                    <input type="text" name="Reason" class="form-control" required />
+                </div>
+                <div class="col-auto">
+                    <button type="submit" class="btn btn-danger">作廢</button>
+                </div>
+            </form>
+        </div>
+    </div>
+}
+
+<a asp-action="Index" class="btn btn-outline-secondary mt-4">回訂單列表</a>

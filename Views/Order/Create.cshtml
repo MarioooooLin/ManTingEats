@@ -1,0 +1,36 @@
+@model ManTingEats.Models.Commands.CreateOrderCommand
+@{
+    ViewData["Title"] = "新增訂單";
+}
+
+<div class="page-header">
+    <h1>新增訂單</h1>
+</div>
+
+<div class="row">
+    <div class="col-md-5">
+        <div class="card">
+            <div class="card-body">
+                <form asp-action="Create" method="post">
+                    <div asp-validation-summary="ModelOnly" class="text-danger"></div>
+                    <div class="mb-3">
+                        <label asp-for="Channel" class="form-label"></label>
+                        <select asp-for="Channel" asp-items="Html.GetEnumSelectList<OrderChannel>()" class="form-select"></select>
+                        <span asp-validation-for="Channel" class="text-danger"></span>
+                    </div>
+                    <div class="mb-3">
+                        <label asp-for="TableNumber" class="form-label">桌號（內用必填）</label>
+                        <input asp-for="TableNumber" class="form-control" />
+                        <span asp-validation-for="TableNumber" class="text-danger"></span>
+                    </div>
+                    <button type="submit" class="btn btn-primary">建立</button>
+                    <a asp-action="Index" class="btn btn-outline-secondary">取消</a>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+    <partial name="_ValidationScriptsPartial" />
+}
