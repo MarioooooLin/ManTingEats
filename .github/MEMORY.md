@@ -4,6 +4,37 @@
 
 ---
 
+### [2026-09-21] 新增支出記錄（Expense）模組 + 營收報表淨利串接
+
+**變更內容**
+
+- 新增 `docs/prd/v2.md`：支出記錄模組 PRD（範圍、欄位、固定分類清單、明確排除項目）。
+- 新增 `Models/Enums/ExpenseCategory.cs`（食材採購/水電瓦斯/房租/人事薪資/設備耗材/其他，固定 6 類）。
+- 新增 `Models/Entities/Expense.cs`、`Models/Commands/ExpenseCommands.cs`（Create/Update，`decimal` 金額、`[StringLength]` 備註驗證）、`Models/ExpenseSearchViewModel.cs`。
+- `Models/Extensions/EnumDisplayExtensions.cs`：新增 `ExpenseCategory` 中文顯示文字。
+- `Data/AppDbContext.cs`：新增 `DbSet<Expense>`，設定 `Amount` 精度 `(10,2)`、`Note` 長度上限 200。
+- 新增 EF Core Migration `AddExpense`，已在本機資料庫套用（`dotnet ef database update`）。
+- 新增 `Controllers/ExpenseController.cs`（`[Authorize]`）：新增、依日期區間/分類查詢、編輯、刪除（刪除/編輯不做操作稽核，比照 PRD v2 決策）。
+- 新增 `Views/Expense/Index.cshtml`、`Create.cshtml`、`Edit.cshtml`，刪除採用 `onsubmit="return confirm(...)"` 比照既有 Order 作廢的確認對話框慣例。
+- `Controllers/ReportController.cs`、`Models/ReportViewModel.cs`、`Views/Report/Index.cshtml`：新增「本期支出總額」與「淨利（= 營收 − 支出）」，淨利為負時以紅字顯示。
+- `Views/Shared/_Layout.cshtml`、`Views/Home/Index.cshtml`：導覽列與首頁儀表板新增「支出記錄」入口。
+
+**決策原因**
+
+- 分類清單固定為 6 類（不開放自訂），避免自由輸入造成報表統計失真；已與使用者確認清單內容。
+- 支出的編輯/刪除不做操作者/原因稽核（與訂單作廢的高風險稽核需求不同），降低這輪開發複雜度，符合 PRD v2 明確排除項目。
+- 沿用既有 Reservation/Menu 模組的 Controller/View 慣例（Command record + `[Authorize]` + `TempData["Success"]`），維持專案風格一致。
+
+**驗證結果**
+
+- `dotnet build`：成功。
+- `dotnet ef migrations add AddExpense` + `dotnet ef database update`：成功建立 `Expenses` 資料表。
+- `docker compose -f docker-compose.yml up -d --build`：重新建置並套用新程式碼。
+- 實機以種子帳號登入測試：`/Expense`、`/Report`（含新增的總支出/淨利欄位）皆回應 200；實際透過表單新增一筆支出記錄後於列表正確顯示，測試資料已清除。
+- `dotnet test`：1 個測試全數通過，無 regression。
+
+---
+
 ### [2026-09-18] 新增正式環境（VPS）部署設定
 
 **變更內容**

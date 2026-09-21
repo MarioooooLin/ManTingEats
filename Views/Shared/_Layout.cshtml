@@ -38,6 +38,9 @@
                                 <a class="nav-link text-dark @(currentController == "Reservation" ? "active" : "")" asp-area="" asp-controller="Reservation" asp-action="Index">訂位記錄</a>
                             </li>
                             <li class="nav-item">
+                                <a class="nav-link text-dark @(currentController == "Expense" ? "active" : "")" asp-area="" asp-controller="Expense" asp-action="Index">支出記錄</a>
+                            </li>
+                            <li class="nav-item">
                                 <a class="nav-link text-dark @(currentController == "Report" ? "active" : "")" asp-area="" asp-controller="Report" asp-action="Index">營收報表</a>
                             </li>
                         }

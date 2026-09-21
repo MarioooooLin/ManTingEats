@@ -1,0 +1,80 @@
+@model ManTingEats.Models.ExpenseSearchViewModel
+@using ManTingEats.Models.Enums
+@using ManTingEats.Models.Extensions
+@{
+    ViewData["Title"] = "支出記錄";
+}
+
+<div class="page-header d-flex justify-content-between align-items-center">
+    <h1 class="mb-0">支出記錄</h1>
+    <a asp-action="Create" class="btn btn-primary">+ 新增支出</a>
+</div>
+
+<div class="card mb-4">
+    <div class="card-body">
+        <form asp-action="Index" method="get" class="row g-2 align-items-end">
+            <div class="col-auto">
+                <label class="form-label">開始日期</label>
+                <input type="date" name="start" value="@Model.Start?.ToString("yyyy-MM-dd")" class="form-control" />
+            </div>
+            <div class="col-auto">
+                <label class="form-label">結束日期</label>
+                <input type="date" name="end" value="@Model.End?.ToString("yyyy-MM-dd")" class="form-control" />
+            </div>
+            <div class="col-auto">
+                <label class="form-label">分類</label>
+                <select name="category" class="form-select">
+                    <option value="">全部</option>
+                    @foreach (var value in Enum.GetValues<ExpenseCategory>())
+                    {
+                        <option value="@value" selected="@(Model.Category == value)">@value.ToDisplayText()</option>
+                    }
+                </select>
+            </div>
+            <div class="col-auto">
+                <button type="submit" class="btn btn-outline-primary">查詢</button>
+                <a asp-action="Index" class="btn btn-outline-secondary">清除</a>
+            </div>
+        </form>
+    </div>
+</div>
+
+<p class="text-muted">支出總額：<strong>$@Model.TotalAmount.ToString("F2")</strong></p>
+
+@if (Model.Results.Count == 0)
+{
+    <p class="text-muted">查無支出記錄。</p>
+}
+else
+{
+    <div class="card">
+        <table class="table table-hover mb-0">
+            <thead>
+                <tr>
+                    <th>日期</th>
+                    <th>分類</th>
+                    <th class="text-end">金額</th>
+                    <th>備註</th>
+                    <th class="text-end">操作</th>
+                </tr>
+            </thead>
+            <tbody>
+                @foreach (var expense in Model.Results)
+                {
+                    <tr>
+                        <td>@expense.Date.ToString("yyyy-MM-dd")</td>
+                        <td>@expense.Category.ToDisplayText()</td>
+                        <td class="text-end">$@expense.Amount.ToString("F2")</td>
+                        <td>@expense.Note</td>
+                        <td class="text-end">
+                            <a asp-action="Edit" asp-route-id="@expense.Id" class="btn btn-sm btn-outline-secondary">編輯</a>
+                            <form asp-action="Delete" asp-route-id="@expense.Id" method="post" class="d-inline" onsubmit="return confirm('確定要刪除此筆支出記錄？此操作無法復原。');">
+                                <button type="submit" class="btn btn-sm btn-outline-danger">刪除</button>
+                            </form>
+                        </td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+    </div>
+}

@@ -35,7 +35,7 @@
 
 <p class="text-muted">統計區間：@Model.StartDate.ToString("yyyy-MM-dd") ～ @Model.EndDate.ToString("yyyy-MM-dd")（僅計入已結帳訂單）</p>
 
-<div class="row g-3 mb-4">
+<div class="row g-3 mb-3">
     <div class="col-md-4">
         <div class="card h-100">
             <div class="card-body">
@@ -44,6 +44,25 @@
             </div>
         </div>
     </div>
+    <div class="col-md-4">
+        <div class="card h-100">
+            <div class="card-body">
+                <h6 class="text-muted">總支出</h6>
+                <p class="display-6 mb-0">$@Model.TotalExpense.ToString("F2")</p>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-4">
+        <div class="card h-100">
+            <div class="card-body">
+                <h6 class="text-muted">淨利</h6>
+                <p class="display-6 mb-0 @(Model.NetProfit < 0 ? "text-danger" : "")">$@Model.NetProfit.ToString("F2")</p>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="row g-3 mb-4">
     <div class="col-md-8">
         <div class="card h-100">
             <div class="card-header">通路營收拆分</div>

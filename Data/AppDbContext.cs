@@ -14,6 +14,7 @@ public sealed class AppDbContext : DbContext
     public DbSet<Order> Orders => Set<Order>();
     public DbSet<OrderItem> OrderItems => Set<OrderItem>();
     public DbSet<Reservation> Reservations => Set<Reservation>();
+    public DbSet<Expense> Expenses => Set<Expense>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -66,6 +67,12 @@ public sealed class AppDbContext : DbContext
         {
             entity.Property(e => e.CustomerName).HasMaxLength(100);
             entity.Property(e => e.PhoneNumber).HasMaxLength(20);
+        });
+
+        modelBuilder.Entity<Expense>(entity =>
+        {
+            entity.Property(e => e.Amount).HasPrecision(10, 2);
+            entity.Property(e => e.Note).HasMaxLength(200);
         });
     }
 }

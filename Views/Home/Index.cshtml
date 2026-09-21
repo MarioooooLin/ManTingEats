@@ -40,6 +40,15 @@
         <div class="col-md-3">
             <div class="card dashboard-card h-100">
                 <div class="card-body">
+                    <h5 class="card-title">支出記錄</h5>
+                    <p class="card-text text-muted">記錄食材、水電、房租等營運支出。</p>
+                    <a asp-controller="Expense" asp-action="Index" class="btn btn-primary">前往支出記錄</a>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card dashboard-card h-100">
+                <div class="card-body">
                     <h5 class="card-title">營收報表</h5>
                     <p class="card-text text-muted">查看指定日期區間的營收、通路拆分與品項排行。</p>
                     <a asp-controller="Report" asp-action="Index" class="btn btn-primary">前往營收報表</a>

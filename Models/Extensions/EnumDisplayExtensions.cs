@@ -18,4 +18,15 @@ public static class EnumDisplayExtensions
         OrderStatus.Voided => "已作廢",
         _ => status.ToString()
     };
+
+    public static string ToDisplayText(this ExpenseCategory category) => category switch
+    {
+        ExpenseCategory.Ingredients => "食材採購",
+        ExpenseCategory.Utilities => "水電瓦斯",
+        ExpenseCategory.Rent => "房租",
+        ExpenseCategory.Payroll => "人事薪資",
+        ExpenseCategory.Equipment => "設備/耗材",
+        ExpenseCategory.Other => "其他",
+        _ => category.ToString()
+    };
 }

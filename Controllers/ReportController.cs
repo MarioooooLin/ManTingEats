@@ -37,6 +37,10 @@ public sealed class ReportController : Controller
 
         var totalRevenue = completedOrders.Sum(o => o.TotalAmount);
 
+        var totalExpense = await _db.Expenses
+            .Where(e => e.Date >= startDate && e.Date < endExclusive)
+            .SumAsync(e => e.Amount);
+
         var channelBreakdown = completedOrders
             .GroupBy(o => o.Channel)
             .Select(g => new ChannelRevenue(g.Key, g.Sum(o => o.TotalAmount)))
@@ -55,6 +59,7 @@ public sealed class ReportController : Controller
             StartDate = startDate,
             EndDate = endDate,
             TotalRevenue = totalRevenue,
+            TotalExpense = totalExpense,
             ChannelBreakdown = channelBreakdown,
             ItemRanking = itemRanking
         });
