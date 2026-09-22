@@ -51,6 +51,7 @@ public sealed class AppDbContext : DbContext
         modelBuilder.Entity<OrderItem>(entity =>
         {
             entity.Property(e => e.UnitPrice).HasPrecision(10, 2);
+            entity.Property(e => e.Note).HasMaxLength(100);
 
             entity.HasOne(e => e.Order)
                 .WithMany(o => o.Items)

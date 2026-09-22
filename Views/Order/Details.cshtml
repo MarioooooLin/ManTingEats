@@ -43,21 +43,38 @@
                 <th class="text-end">單價</th>
                 <th class="text-end">數量</th>
                 <th class="text-end">小計</th>
+                <th>出單狀態</th>
                 <th></th>
             </tr>
         </thead>
         <tbody>
             @if (order.Items.Count == 0)
             {
-                <tr><td colspan="5" class="text-muted text-center py-3">尚未加點任何品項</td></tr>
+                <tr><td colspan="6" class="text-muted text-center py-3">尚未加點任何品項</td></tr>
             }
             @foreach (var item in order.Items)
             {
                 <tr>
-                    <td>@item.MenuItem?.Name</td>
+                    <td>
+                        @item.MenuItem?.Name
+                        @if (!string.IsNullOrWhiteSpace(item.Note))
+                        {
+                            <div class="text-muted small">備註：@item.Note</div>
+                        }
+                    </td>
                     <td class="text-end">$@item.UnitPrice.ToString("F2")</td>
                     <td class="text-end">@item.Quantity</td>
                     <td class="text-end">$@((item.UnitPrice * item.Quantity).ToString("F2"))</td>
+                    <td>
+                        @if (item.IsPrinted)
+                        {
+                            <span class="badge bg-secondary">已出單</span>
+                        }
+                        else
+                        {
+                            <span class="badge bg-warning text-dark">待出單</span>
+                        }
+                    </td>
                     <td class="text-end">
                         @if (order.Status == OrderStatus.Open)
                         {
@@ -101,8 +118,22 @@
                         <input type="number" name="Quantity" value="1" min="1" class="form-control" style="width: 6rem;" />
                     </div>
                     <div class="col-auto">
+                        <label class="form-label">備註（選填，例：少辣）</label>
+                        <input type="text" name="Note" maxlength="100" class="form-control" style="width: 12rem;" />
+                    </div>
+                    <div class="col-auto">
                         <button type="submit" class="btn btn-primary">加點</button>
                     </div>
+                </form>
+            }
+            @{
+                var pendingCount = order.Items.Count(i => !i.IsPrinted);
+            }
+            @if (pendingCount > 0)
+            {
+                <form asp-action="ConfirmPrint" method="post" class="mt-3">
+                    <input type="hidden" name="orderId" value="@order.Id" />
+                    <button type="submit" class="btn btn-outline-primary">確認出單（@pendingCount 項待出單）</button>
                 </form>
             }
         </div>
@@ -132,3 +163,7 @@
 }
 
 <a asp-action="Index" class="btn btn-outline-secondary mt-4">回訂單列表</a>
+
+<form asp-action="Reprint" asp-route-id="@order.Id" method="post" class="d-inline">
+    <button type="submit" class="btn btn-outline-secondary mt-4">補印出單</button>
+</form>

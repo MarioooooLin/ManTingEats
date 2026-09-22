@@ -4,6 +4,73 @@
 
 ---
 
+### [2026-09-22] 出單列印模組實作（v3）+ 改為明確「確認出單」觸發
+
+**變更內容**
+
+- 新增 `Services/IReceiptPrinterService.cs`、`LanReceiptPrinterService.cs`：透過 raw TCP socket 直連印表機 `IP:9100`，內容以 Big5 編碼送出；新增 `Models/Options/PrinterOptions.cs` 與 `appsettings.json`/`appsettings.Development.json` 的 `Printer` 設定區塊（預設 `Enabled: false`）；`Program.cs` 註冊 `CodePagesEncodingProvider`（Big5 需要）與服務 DI。
+- `Models/Entities/OrderItem.cs` 新增 `Note`（給廚房看的單項備註）與 `IsPrinted`（是否已隨出單列印過）兩個欄位，皆已建立 EF Core Migration 並套用至本機資料庫。
+- `Controllers/OrderController.cs`：
+  - `AddItem` 僅寫入品項（`IsPrinted = false`），**不再於加點當下自動列印**。
+  - 新增 `ConfirmPrint`：由店長主動按「確認出單」按鈕，批次列印自上次確認後新增的所有品項（首次為「全單」，之後為「加點單」），成功後才標記 `IsPrinted = true`。
+  - `Checkout` 新增安全網：結帳前若仍有未出單品項，自動嘗試補列印，避免忘記按「確認出單」導致廚房漏單；列印失敗僅顯示警告，不阻擋結帳。
+  - `Void` 維持原本作廢時自動列印「作廢通知」（作廢本身已是明確的單一動作，不受本次調整影響）。
+  - 新增 `Reprint`：手動重印全單，供印表機故障後備用。
+- `Views/Order/Details.cshtml`：品項清單新增「待出單/已出單」badge、加點區塊新增「確認出單（N 項待出單）」按鈕；`_StatusMessage.cshtml` 新增 `TempData["Warning"]` 黃色警告樣式。
+- `docs/prd/v3.md`：2.1 節更新為實際採用的 raw TCP socket 方案（非 Star SDK，考量 Linux Docker 容器可攜性）；2.2 節改為「確認出單」批次觸發模型；第 5 節技術確認紀錄同步更新。
+
+**決策原因**
+
+- 原規格「加點時自動列印」會導致每次加點都各自觸發一次列印，多品項訂單會產生大量零碎紙條（使用者反映「亂印」問題），改為使用者主動按「確認出單」統一批次列印較符合實際出餐流程（一次性把當下要送去廚房的品項一起交代清楚）。
+- 為避免使用者忘記按「確認出單」導致品項從未送達廚房，於結帳動作加上自動補列印的安全網，僅在真正離開「未結帳」狀態前做最後把關，不影響原本「不阻擋操作」的失敗處理原則。
+- 指令串接改採 raw TCP socket 直送（印表機自我測試頁已確認 `TCP#9100: ENABLE`），而非原規劃的 Star 官方 SDK：專案以 Docker Linux 容器部署（見 `docker-compose.prod.yml`），Star 官方 .NET SDK 主要面向 Windows/行動裝置平台，跨平台相容性不明；raw socket 方案功能等價且不受平台限制，風險更低。
+
+**驗證結果**
+
+- `dotnet build`、`dotnet test`（1 個測試）：成功，無 regression。
+- `dotnet ef database update`：成功套用 `AddOrderItemNote`、`AddOrderItemIsPrinted` 兩個 migration。
+- 尚未有實體印表機可連線（IP 未取得），列印功能僅完成程式邏輯與畫面，實際吐紙效果待印表機接上網路後由使用者實機驗證。
+
+---
+
+### [2026-09-22] 出單列印模組實機確認：改採 Star SDK + Big5 編碼
+
+**變更內容**
+
+- 實機列印印表機自我測試頁確認：LAN 功能正常（`ASB(LAN)`/`NSB(LAN)`: Valid）、字元模式為 `T-Chinese(Big5)`；測試當下尚未取得網路 IP（DHCP 未配發），待實際接上網路後續測連線。
+- `docs/prd/v3.md`：2.1 節更新為確定採用 **Star 官方 SDK**（不賭 ESC/POS 相容模式）；新增「中文內容需轉換為 Big5 編碼」風險與因應；新增第 5 節「技術確認紀錄」。
+
+**決策原因**
+
+- 自我測試頁未明確列出 Emulation 欄位，無法 100% 確認 ESC/POS 相容模式是否可用；既然印表機已確認為 Star 原廠機種，直接採用官方 SDK 可跳過此不確定性，不需要再花時間賭測試。
+- 字元模式為 Big5 而非 UTF-8，須在送出列印內容前做編碼轉換，否則中文品項名稱會亂碼，故列為需在開發時驗證的風險項目。
+
+**驗證結果**
+
+- 僅完成印表機規格確認與文件更新，尚未進入程式碼實作。
+
+---
+
+### [2026-09-22] 出單列印模組 PRD 定案（v3，尚未開發）
+
+**變更內容**
+
+- 新增 `docs/prd/v3.md`：出單列印模組 PRD（連線方式、觸發時機與內容、失敗處理、明確排除、風險與因應）。
+- `BRIEFING.md`：開發階段清單新增本模組為待辦項目。
+
+**決策原因**
+
+- 印表機連線方式選定網路熱感印表機（LAN + ESC/POS），確認實際設備為 Star Micronics mC-Print3（MCP31L，LAN 介面），與方案相符；若機器僅支援原生 StarPRNT，開發時改用 Star 官方 SDK 串接，屬實作細節不影響規格。
+- 出單聯內容原本規劃不含金額（僅供廚房參考），因使用者說明目前為店長一人兼點餐/出餐/收銀，改為建單/加點時皆列印訂單目前總金額，方便直接作為結帳依據；作廢通知維持不含金額（用途僅為通知廚房停止製作，非結帳用途）。
+- 印表機離線不阻擋操作（僅顯示警告 + 提供補印按鈕），避免單點故障影響現場點餐運作。
+
+**驗證結果**
+
+- 僅完成 PRD 文件，尚未進入程式碼實作，無需編譯/測試驗證。
+- 待開發前需在現場確認印表機是否已啟用 ESC/POS 相容模式（PRD 已列為風險項目，非阻塞）。
+
+---
+
 ### [2026-09-21] 新增支出記錄（Expense）模組 + 營收報表淨利串接
 
 **變更內容**

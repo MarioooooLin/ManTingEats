@@ -4,6 +4,7 @@ using ManTingEats.Models;
 using ManTingEats.Models.Commands;
 using ManTingEats.Models.Entities;
 using ManTingEats.Models.Enums;
+using ManTingEats.Services;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
@@ -14,10 +15,12 @@ namespace ManTingEats.Controllers;
 public sealed class OrderController : Controller
 {
     private readonly AppDbContext _db;
+    private readonly IReceiptPrinterService _printer;
 
-    public OrderController(AppDbContext db)
+    public OrderController(AppDbContext db, IReceiptPrinterService printer)
     {
         _db = db;
+        _printer = printer;
     }
 
     private int CurrentEmployeeId => int.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier)!);
@@ -107,17 +110,76 @@ public sealed class OrderController : Controller
             return RedirectToAction(nameof(Details), new { id = orderId });
         }
 
-        order.Items.Add(new OrderItem
+        var newItem = new OrderItem
         {
             MenuItemId = menuItem.Id,
             UnitPrice = menuItem.Price,
-            Quantity = command.Quantity
-        });
-        // 每次加點皆重新加總，確保金額與品項清單一致
+            Quantity = command.Quantity,
+            Note = command.Note
+        };
+        order.Items.Add(newItem);
+        // 每次加點皮重新加總，確保金額與品項清單一致
         order.TotalAmount = order.Items.Sum(i => i.UnitPrice * i.Quantity);
         await _db.SaveChangesAsync();
         TempData["Success"] = $"已加點 {menuItem.Name} x{command.Quantity}。";
+
         return RedirectToAction(nameof(Details), new { id = orderId });
+    }
+
+    [HttpPost]
+    [ValidateAntiForgeryToken]
+    public async Task<IActionResult> ConfirmPrint(int orderId)
+    {
+        var order = await _db.Orders
+            .Include(o => o.Items)
+                .ThenInclude(i => i.MenuItem)
+            .SingleOrDefaultAsync(o => o.Id == orderId);
+        if (order is null)
+        {
+            return NotFound();
+        }
+
+        var printed = await TryPrintPendingItemsAsync(order);
+        if (printed is null)
+        {
+            TempData["Error"] = "目前沒有尚未出單的品項。";
+        }
+        else if (printed == true)
+        {
+            await _db.SaveChangesAsync();
+            TempData["Success"] = "已出單。";
+        }
+        else
+        {
+            TempData["Warning"] = "⬆ 出單失敗，請確認印表機後重新按「確認出單」。";
+        }
+
+        return RedirectToAction(nameof(Details), new { id = orderId });
+    }
+
+    /// <summary>將尚未出單的品項批次列印（首次列為全單，之後列為加點單）；true=列印成功並已標記，false=列印失敗，null=無待出單品項。不負責儲存，調用端需自行 SaveChangesAsync。</summary>
+    private async Task<bool?> TryPrintPendingItemsAsync(Order order)
+    {
+        var pendingItems = order.Items.Where(i => !i.IsPrinted).ToList();
+        if (pendingItems.Count == 0)
+        {
+            return null;
+        }
+
+        var isFirstBatch = pendingItems.Count == order.Items.Count;
+        var printed = isFirstBatch
+            ? await _printer.PrintNewOrderAsync(order)
+            : await _printer.PrintAddedItemsAsync(order, pendingItems);
+
+        if (printed)
+        {
+            foreach (var item in pendingItems)
+            {
+                item.IsPrinted = true;
+            }
+        }
+
+        return printed;
     }
 
     [HttpPost]
@@ -153,7 +215,10 @@ public sealed class OrderController : Controller
     [ValidateAntiForgeryToken]
     public async Task<IActionResult> Checkout(int id)
     {
-        var order = await _db.Orders.Include(o => o.Items).SingleOrDefaultAsync(o => o.Id == id);
+        var order = await _db.Orders
+            .Include(o => o.Items)
+                .ThenInclude(i => i.MenuItem)
+            .SingleOrDefaultAsync(o => o.Id == id);
         if (order is null)
         {
             return NotFound();
@@ -165,10 +230,19 @@ public sealed class OrderController : Controller
             return RedirectToAction(nameof(Details), new { id });
         }
 
+        // 安全網：若結帳前仍有忘記確認出單的品項，結帳時一併補列印，避免廚房漏單
+        var printResult = await TryPrintPendingItemsAsync(order);
+
         order.Status = OrderStatus.Completed;
         order.CompletedAt = DateTime.UtcNow;
         await _db.SaveChangesAsync();
         TempData["Success"] = "結帳完成。";
+
+        if (printResult == false)
+        {
+            TempData["Warning"] = "⬆ 結帳前仍有品項未出單且列印失敗，請確認印表機並使用「補印」。";
+        }
+
         return RedirectToAction(nameof(Details), new { id });
     }
 
@@ -176,7 +250,10 @@ public sealed class OrderController : Controller
     [ValidateAntiForgeryToken]
     public async Task<IActionResult> Void(int id, VoidOrderCommand command)
     {
-        var order = await _db.Orders.SingleOrDefaultAsync(o => o.Id == id);
+        var order = await _db.Orders
+            .Include(o => o.Items)
+                .ThenInclude(i => i.MenuItem)
+            .SingleOrDefaultAsync(o => o.Id == id);
         if (order is null)
         {
             return NotFound();
@@ -200,6 +277,30 @@ public sealed class OrderController : Controller
         order.VoidedByEmployeeId = CurrentEmployeeId;
         await _db.SaveChangesAsync();
         TempData["Success"] = "訂單已作廢。";
+
+        if (!await _printer.PrintVoidNoticeAsync(order))
+        {
+            TempData["Warning"] = "⬆ 作廢通知列印失敗，請確認印表機並手動告知廚房。";
+        }
+
+        return RedirectToAction(nameof(Details), new { id });
+    }
+
+    [HttpPost]
+    [ValidateAntiForgeryToken]
+    public async Task<IActionResult> Reprint(int id)
+    {
+        var order = await _db.Orders
+            .Include(o => o.Items)
+                .ThenInclude(i => i.MenuItem)
+            .SingleOrDefaultAsync(o => o.Id == id);
+        if (order is null)
+        {
+            return NotFound();
+        }
+
+        var printed = await _printer.PrintNewOrderAsync(order);
+        TempData[printed ? "Success" : "Warning"] = printed ? "已重新列印全單。" : "⬆ 補印失敗，請確認印表機。";
         return RedirectToAction(nameof(Details), new { id });
     }
 }

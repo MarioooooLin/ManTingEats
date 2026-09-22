@@ -42,8 +42,7 @@
 - [x] 安全性複查修正：Cookie 硬化（HttpOnly/SecurePolicy/SameSite/有效期限）、登入失敗鎖定機制、Command 輸入長度上限驗證、資料庫改用最小權限帳號（非 root）
 - [x] 正式環境部署設定：新增 `docker-compose.prod.yml`（web + db + Caddy 反向代理自動 HTTPS）、機密改用 `.env` 注入、DataProtection Key 持久化、`ForwardedHeaders` 中介軟體、資料庫備份腳本
 - [x] 支出記錄（Expense）模組（見 [docs/prd/v2.md](../docs/prd/v2.md)）：新增/編輯/刪除支出、依日期區間與分類查詢；營收報表新增本期支出與淨利
-- [ ] 實際租用 VPS 主機與網域，於現場完成部署（防火牆規則、DNS 綁定、憑證申請驗證）並執行平板點餐實地演練
-
+- [ ] 實際租用 VPS 主機與網域，於現場完成部署（防火牆規則、DNS 綁定、憑證申請驗證）並執行平板點餐實地演練- [ ] 出單列印模組（見 [docs/prd/v3.md](../docs/prd/v3.md)）：程式邏輯與畫面已完成（確認出單、待出單狀態、補印、結帳前自動補列印安全網），待印表機接上網路取得 IP 後進行實機連線列印驗證
 > PRD MVP 五大模組（Auth/Menu/Order/Reservation/Reporting）均已實作並實機驗證。
 
 ## 已知待確認問題
