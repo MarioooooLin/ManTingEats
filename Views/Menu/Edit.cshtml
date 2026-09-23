@@ -1,6 +1,9 @@
 @model ManTingEats.Models.Commands.UpdateMenuItemCommand
+@using Microsoft.AspNetCore.Mvc.Rendering
 @{
     ViewData["Title"] = "編輯菜單品項";
+    var categoryOptions = Enum.GetValues<MenuCategory>()
+        .Select(c => new SelectListItem(c.ToDisplayText(), c.ToString()));
 }
 
 <div class="page-header">
@@ -21,7 +24,7 @@
                     </div>
                     <div class="mb-3">
                         <label asp-for="Category" class="form-label"></label>
-                        <input asp-for="Category" class="form-control" />
+                        <select asp-for="Category" asp-items="categoryOptions" class="form-select"></select>
                         <span asp-validation-for="Category" class="text-danger"></span>
                     </div>
                     <div class="mb-3">

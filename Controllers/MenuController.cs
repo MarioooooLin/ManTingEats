@@ -1,6 +1,7 @@
 using ManTingEats.Data;
 using ManTingEats.Models.Commands;
 using ManTingEats.Models.Entities;
+using ManTingEats.Models.Enums;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
@@ -29,7 +30,7 @@ public sealed class MenuController : Controller
     [HttpGet]
     public IActionResult Create()
     {
-        return View(new CreateMenuItemCommand(string.Empty, string.Empty, 0));
+        return View(new CreateMenuItemCommand(string.Empty, MenuCategory.Food, 0));
     }
 
     [HttpPost]

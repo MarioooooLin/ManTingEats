@@ -27,7 +27,6 @@ public sealed class AppDbContext : DbContext
         modelBuilder.Entity<MenuItem>(entity =>
         {
             entity.Property(e => e.Name).HasMaxLength(100);
-            entity.Property(e => e.Category).HasMaxLength(50);
             entity.Property(e => e.Price).HasPrecision(10, 2);
         });
 
