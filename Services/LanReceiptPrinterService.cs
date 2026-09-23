@@ -103,7 +103,7 @@ public sealed class LanReceiptPrinterService : IReceiptPrinterService
         sb.AppendLine("========================");
         sb.AppendLine(title);
         sb.AppendLine("========================");
-        sb.AppendLine($"訂單編號：#{order.Id}");
+        sb.AppendLine($"訂單編號：#{order.DailyNumber}");
         sb.AppendLine($"通路：{order.Channel.ToDisplayText()}");
         sb.AppendLine($"桌號：{order.TableNumber ?? "-"}");
         sb.AppendLine($"時間：{DateTime.Now:yyyy/MM/dd HH:mm}");

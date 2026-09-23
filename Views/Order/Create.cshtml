@@ -1,6 +1,9 @@
 @model ManTingEats.Models.Commands.CreateOrderCommand
+@using Microsoft.AspNetCore.Mvc.Rendering
 @{
     ViewData["Title"] = "新增訂單";
+    var channelOptions = Enum.GetValues<OrderChannel>()
+        .Select(c => new SelectListItem(c.ToDisplayText(), c.ToString()));
 }
 
 <div class="page-header">
@@ -13,9 +16,21 @@
             <div class="card-body">
                 <form asp-action="Create" method="post">
                     <div asp-validation-summary="ModelOnly" class="text-danger"></div>
+                    @if (ViewBag.DuplicateTableOrder is ManTingEats.Models.Entities.Order duplicateOrder)
+                    {
+                        <div class="alert alert-warning">
+                            桌號「@duplicateOrder.TableNumber」目前已有未結帳訂單
+                            <a asp-action="Details" asp-route-id="@duplicateOrder.Id">#@duplicateOrder.DailyNumber</a>。
+                            若是併桌需要另開新單，請勾選下方確認後再次送出。
+                            <div class="form-check mt-2">
+                                <input type="checkbox" name="confirmDuplicateTable" value="true" class="form-check-input" id="confirmDuplicateTable" />
+                                <label class="form-check-label" for="confirmDuplicateTable">我確定要為此桌建立新的訂單（併桌）</label>
+                            </div>
+                        </div>
+                    }
                     <div class="mb-3">
                         <label asp-for="Channel" class="form-label"></label>
-                        <select asp-for="Channel" asp-items="Html.GetEnumSelectList<OrderChannel>()" class="form-select"></select>
+                        <select asp-for="Channel" asp-items="channelOptions" class="form-select"></select>
                         <span asp-validation-for="Channel" class="text-danger"></span>
                     </div>
                     <div class="mb-3">

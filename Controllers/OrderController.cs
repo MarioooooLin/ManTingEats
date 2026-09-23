@@ -41,7 +41,7 @@ public sealed class OrderController : Controller
 
     [HttpPost]
     [ValidateAntiForgeryToken]
-    public async Task<IActionResult> Create(CreateOrderCommand command)
+    public async Task<IActionResult> Create(CreateOrderCommand command, bool confirmDuplicateTable = false)
     {
         if (command.Channel == OrderChannel.DineIn && string.IsNullOrWhiteSpace(command.TableNumber))
         {
@@ -53,17 +53,49 @@ public sealed class OrderController : Controller
             return View(command);
         }
 
+        // 同桌可能因併桌而合理地開第二張單，僅提示不強制擋下，需使用者主動勾選確認
+        if (command.Channel == OrderChannel.DineIn && !confirmDuplicateTable)
+        {
+            var existingOpenOrder = await _db.Orders
+                .Where(o => o.Status == OrderStatus.Open && o.TableNumber == command.TableNumber)
+                .OrderByDescending(o => o.CreatedAt)
+                .FirstOrDefaultAsync();
+            if (existingOpenOrder is not null)
+            {
+                ViewBag.DuplicateTableOrder = existingOpenOrder;
+                return View(command);
+            }
+        }
+
         var order = new Order
         {
             Channel = command.Channel,
             TableNumber = command.Channel == OrderChannel.DineIn ? command.TableNumber : null,
             Status = OrderStatus.Open,
             TotalAmount = 0,
+            DailyNumber = await GetNextDailyNumberAsync(),
             CreatedByEmployeeId = CurrentEmployeeId
         };
         _db.Orders.Add(order);
         await _db.SaveChangesAsync();
         return RedirectToAction(nameof(Details), new { id = order.Id });
+    }
+
+    private static readonly TimeZoneInfo TaipeiTimeZone = TimeZoneInfo.FindSystemTimeZoneById("Asia/Taipei");
+
+    /// <summary>以台灣時區（而非容器系統時區）判斷「今天」的邊界，計算當日下一個流水號。</summary>
+    private async Task<int> GetNextDailyNumberAsync()
+    {
+        var todayTaipei = TimeZoneInfo.ConvertTimeFromUtc(DateTime.UtcNow, TaipeiTimeZone).Date;
+        var todayStartUtc = TimeZoneInfo.ConvertTimeToUtc(todayTaipei, TaipeiTimeZone);
+        var todayEndUtc = todayStartUtc.AddDays(1);
+
+        var maxDailyNumber = await _db.Orders
+            .Where(o => o.CreatedAt >= todayStartUtc && o.CreatedAt < todayEndUtc)
+            .Select(o => (int?)o.DailyNumber)
+            .MaxAsync();
+
+        return (maxDailyNumber ?? 0) + 1;
     }
 
     public async Task<IActionResult> Details(int id)
@@ -95,6 +127,12 @@ public sealed class OrderController : Controller
         if (order is null)
         {
             return NotFound();
+        }
+
+        if (!ModelState.IsValid)
+        {
+            TempData["Error"] = string.Join("；", ModelState.Values.SelectMany(v => v.Errors).Select(e => e.ErrorMessage));
+            return RedirectToAction(nameof(Details), new { id = orderId });
         }
 
         if (order.Status != OrderStatus.Open)
@@ -184,6 +222,43 @@ public sealed class OrderController : Controller
 
     [HttpPost]
     [ValidateAntiForgeryToken]
+    public async Task<IActionResult> CancelPendingItems(int orderId)
+    {
+        var order = await _db.Orders.Include(o => o.Items).SingleOrDefaultAsync(o => o.Id == orderId);
+        if (order is null)
+        {
+            return NotFound();
+        }
+
+        if (order.Status != OrderStatus.Open)
+        {
+            TempData["Error"] = "訂單已鎖定，無法取消。";
+            return RedirectToAction(nameof(Details), new { id = orderId });
+        }
+
+        var pendingItems = order.Items.Where(i => !i.IsPrinted).ToList();
+        foreach (var item in pendingItems)
+        {
+            order.Items.Remove(item);
+            _db.OrderItems.Remove(item);
+        }
+        order.TotalAmount = order.Items.Sum(i => i.UnitPrice * i.Quantity);
+
+        // 訂單從未出過單，代表廚房從未收到通知，直接連同訂單一併作廢，不需使用者輸入理由
+        if (order.Items.Count == 0)
+        {
+            order.Status = OrderStatus.Voided;
+            order.VoidReason = "未確認出單，使用者取消";
+            order.VoidedByEmployeeId = CurrentEmployeeId;
+        }
+
+        await _db.SaveChangesAsync();
+        TempData["Success"] = "已取消。";
+        return RedirectToAction(nameof(Details), new { id = orderId });
+    }
+
+    [HttpPost]
+    [ValidateAntiForgeryToken]
     public async Task<IActionResult> RemoveItem(int orderId, int orderItemId)
     {
         var order = await _db.Orders.Include(o => o.Items).SingleOrDefaultAsync(o => o.Id == orderId);
@@ -259,15 +334,15 @@ public sealed class OrderController : Controller
             return NotFound();
         }
 
-        if (order.Status != OrderStatus.Completed)
+        if (order.Status != OrderStatus.Open && order.Status != OrderStatus.Completed)
         {
-            TempData["Error"] = "僅已結帳訂單可作廢。";
+            TempData["Error"] = "此訂單狀態不可作廢。";
             return RedirectToAction(nameof(Details), new { id });
         }
 
-        if (string.IsNullOrWhiteSpace(command.Reason))
+        if (!ModelState.IsValid)
         {
-            TempData["Error"] = "請輸入作廢原因。";
+            TempData["Error"] = string.Join("；", ModelState.Values.SelectMany(v => v.Errors).Select(e => e.ErrorMessage));
             return RedirectToAction(nameof(Details), new { id });
         }
 
@@ -278,7 +353,9 @@ public sealed class OrderController : Controller
         await _db.SaveChangesAsync();
         TempData["Success"] = "訂單已作廢。";
 
-        if (!await _printer.PrintVoidNoticeAsync(order))
+        // 尚未有任何品項送過廚房，無需列印作廢通知
+        var hasPrintedItems = order.Items.Any(i => i.IsPrinted);
+        if (hasPrintedItems && !await _printer.PrintVoidNoticeAsync(order))
         {
             TempData["Warning"] = "⬆ 作廢通知列印失敗，請確認印表機並手動告知廚房。";
         }

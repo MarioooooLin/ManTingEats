@@ -29,4 +29,12 @@ public static class EnumDisplayExtensions
         ExpenseCategory.Other => "其他",
         _ => category.ToString()
     };
+
+    public static string ToDisplayText(this MenuCategory category) => category switch
+    {
+        MenuCategory.Food => "吃",
+        MenuCategory.Drink => "喝",
+        MenuCategory.Other => "其他",
+        _ => category.ToString()
+    };
 }
