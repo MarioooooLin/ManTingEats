@@ -15,6 +15,7 @@
 else
 {
     <div class="card">
+        <div class="table-responsive">
         <table class="table table-hover mb-0">
             <thead>
                 <tr>
@@ -29,18 +30,18 @@ else
                 @foreach (var item in Model)
                 {
                     <tr>
-                        <td>@item.Category</td>
+                        <td>@item.Category.ToDisplayText()</td>
                         <td>@item.Name</td>
                         <td class="text-end">$@item.Price.ToString("F2")</td>
                         <td>
-                            <span class="badge @(item.IsActive ? "bg-success" : "bg-secondary")">
+                            <span class="badge @(item.IsActive ? "badge-soft-success" : "badge-soft-secondary")">
                                 @(item.IsActive ? "上架中" : "已下架")
                             </span>
                         </td>
                         <td class="text-end">
                             <a asp-action="Edit" asp-route-id="@item.Id" class="btn btn-sm btn-outline-secondary">編輯</a>
                             <form asp-action="ToggleActive" asp-route-id="@item.Id" method="post" class="d-inline">
-                                <button type="submit" class="btn btn-sm btn-outline-warning">
+                                <button type="submit" class="btn btn-sm @(item.IsActive ? "btn-outline-danger" : "btn-outline-success")">
                                     @(item.IsActive ? "下架" : "上架")
                                 </button>
                             </form>
@@ -49,5 +50,6 @@ else
                 }
             </tbody>
         </table>
+        </div>
     </div>
 }

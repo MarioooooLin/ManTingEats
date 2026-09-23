@@ -15,6 +15,7 @@
 else
 {
     <div class="card">
+        <div class="table-responsive">
         <table class="table table-hover mb-0">
             <thead>
                 <tr>
@@ -32,14 +33,15 @@ else
                 {
                     var badgeClass = order.Status switch
                     {
-                        OrderStatus.Open => "bg-warning text-dark",
-                        OrderStatus.Completed => "bg-success",
-                        OrderStatus.Voided => "bg-secondary",
-                        _ => "bg-secondary"
+                        OrderStatus.Open => "badge-soft-warning",
+                        OrderStatus.Completed => "badge-soft-success",
+                        OrderStatus.Voided => "badge-soft-secondary",
+                        _ => "badge-soft-secondary"
                     };
+                    var channelBadgeClass = order.Channel == OrderChannel.DineIn ? "badge-soft-primary" : "badge-soft-info";
                     <tr>
-                        <td>#@order.Id</td>
-                        <td>@order.Channel.ToDisplayText()</td>
+                        <td>#@order.DailyNumber</td>
+                        <td><span class="badge @channelBadgeClass">@order.Channel.ToDisplayText()</span></td>
                         <td>@(order.TableNumber ?? "-")</td>
                         <td><span class="badge @badgeClass">@order.Status.ToDisplayText()</span></td>
                         <td class="text-end">$@order.TotalAmount.ToString("F2")</td>
@@ -51,5 +53,6 @@ else
                 }
             </tbody>
         </table>
+        </div>
     </div>
 }
