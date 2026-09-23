@@ -1,18 +1,19 @@
 @model ManTingEats.Models.OrderDetailsViewModel
 @{
     var order = Model.Order;
-    ViewData["Title"] = $"訂單 #{order.Id}";
+    ViewData["Title"] = $"訂單 #{order.DailyNumber}";
     var badgeClass = order.Status switch
     {
-        OrderStatus.Open => "bg-warning text-dark",
-        OrderStatus.Completed => "bg-success",
-        OrderStatus.Voided => "bg-secondary",
-        _ => "bg-secondary"
+        OrderStatus.Open => "badge-soft-warning",
+        OrderStatus.Completed => "badge-soft-success",
+        OrderStatus.Voided => "badge-soft-secondary",
+        _ => "badge-soft-secondary"
     };
+    var channelBadgeClass = order.Channel == OrderChannel.DineIn ? "badge-soft-primary" : "badge-soft-info";
 }
 
 <div class="page-header d-flex justify-content-between align-items-center">
-    <h1 class="mb-0">訂單 #@order.Id</h1>
+    <h1 class="mb-0">訂單 #@order.DailyNumber</h1>
     <span class="badge @badgeClass fs-6">@order.Status.ToDisplayText()</span>
 </div>
 
@@ -20,7 +21,7 @@
     <div class="card-body">
         <dl class="row mb-0">
             <dt class="col-sm-2">通路</dt>
-            <dd class="col-sm-4">@order.Channel.ToDisplayText()</dd>
+            <dd class="col-sm-4"><span class="badge @channelBadgeClass">@order.Channel.ToDisplayText()</span></dd>
             <dt class="col-sm-2">桌號</dt>
             <dd class="col-sm-4">@(order.TableNumber ?? "-")</dd>
             <dt class="col-sm-2">總金額</dt>
@@ -68,11 +69,11 @@
                     <td>
                         @if (item.IsPrinted)
                         {
-                            <span class="badge bg-secondary">已出單</span>
+                            <span class="badge badge-soft-secondary">已出單</span>
                         }
                         else
                         {
-                            <span class="badge bg-warning text-dark">待出單</span>
+                            <span class="badge badge-soft-warning">待出單</span>
                         }
                     </td>
                     <td class="text-end">
@@ -93,8 +94,9 @@
 
 @if (order.Status == OrderStatus.Open)
 {
+    var isFirstOrder = order.Items.Count == 0;
     <div class="card mb-4">
-        <div class="card-header">加點</div>
+        <div class="card-header">@(isFirstOrder ? "點餐" : "加點")</div>
         <div class="card-body">
             @if (Model.ActiveMenuItems.Count == 0)
             {
@@ -102,60 +104,116 @@
             }
             else
             {
-                <form asp-action="AddItem" method="post" class="row g-2 align-items-end">
-                    <input type="hidden" name="orderId" value="@order.Id" />
-                    <div class="col-auto">
-                        <label class="form-label">品項</label>
-                        <select name="MenuItemId" class="form-select">
-                            @foreach (var menuItem in Model.ActiveMenuItems)
-                            {
-                                <option value="@menuItem.Id">@menuItem.Category - @menuItem.Name（$@menuItem.Price.ToString("F2")）</option>
-                            }
-                        </select>
+                var categories = Model.ActiveMenuItems.GroupBy(m => m.Category).OrderBy(g => g.Key);
+                <ul class="nav nav-pills mb-3">
+                    @{ var isFirstCategory = true; }
+                    @foreach (var group in categories)
+                    {
+                        <li class="nav-item">
+                            <button class="nav-link @(isFirstCategory ? "active" : "")" data-bs-toggle="pill" data-bs-target="#cat-@group.Key" type="button">
+                                @group.Key.ToDisplayText()
+                            </button>
+                        </li>
+                        isFirstCategory = false;
+                    }
+                </ul>
+
+                <div class="tab-content mb-3">
+                    @{ isFirstCategory = true; }
+                    @foreach (var group in categories)
+                    {
+                        <div class="tab-pane fade @(isFirstCategory ? "show active" : "")" id="cat-@group.Key">
+                            <div class="row row-cols-2 row-cols-md-4 g-2">
+                                @foreach (var menuItem in group)
+                                {
+                                    <div class="col">
+                                        <button type="button" class="btn btn-outline-primary w-100 h-100 py-3 menu-item-card"
+                                                data-id="@menuItem.Id" data-name="@menuItem.Name" data-price="@menuItem.Price.ToString("F2")">
+                                            <div class="fw-bold">@menuItem.Name</div>
+                                            <div class="small text-muted">$@menuItem.Price.ToString("F2")</div>
+                                        </button>
+                                    </div>
+                                }
+                            </div>
+                        </div>
+                        isFirstCategory = false;
+                    }
+                </div>
+
+                <div class="offcanvas offcanvas-bottom" tabindex="-1" id="addItemPanel" style="height: auto; max-height: 80vh;">
+                    <div class="offcanvas-header">
+                        <h5 class="offcanvas-title" id="modalItemName"></h5>
+                        <button type="button" class="btn-close" data-bs-dismiss="offcanvas"></button>
                     </div>
-                    <div class="col-auto">
-                        <label class="form-label">數量</label>
-                        <input type="number" name="Quantity" value="1" min="1" class="form-control" style="width: 6rem;" />
+                    <div class="offcanvas-body">
+                        <form asp-action="AddItem" method="post">
+                            <input type="hidden" name="orderId" value="@order.Id" />
+                            <input type="hidden" name="MenuItemId" id="modalMenuItemId" />
+                            <div class="mb-3">
+                                <label class="form-label">數量</label>
+                                <div class="qty-stepper">
+                                    <button type="button" class="btn btn-outline-secondary qty-btn" data-step="-1">−</button>
+                                    <input type="number" name="Quantity" id="modalQuantity" value="1" min="1" step="1" required class="form-control" />
+                                    <button type="button" class="btn btn-outline-secondary qty-btn" data-step="1">+</button>
+                                </div>
+                            </div>
+                            <div class="mb-3">
+                                <label class="form-label">備註（選填，例：少辣）</label>
+                                <input type="text" name="Note" maxlength="100" class="form-control" />
+                            </div>
+                            <button type="submit" class="btn btn-primary btn-lg w-100">@(isFirstOrder ? "點餐" : "加點")</button>
+                        </form>
                     </div>
-                    <div class="col-auto">
-                        <label class="form-label">備註（選填，例：少辣）</label>
-                        <input type="text" name="Note" maxlength="100" class="form-control" style="width: 12rem;" />
-                    </div>
-                    <div class="col-auto">
-                        <button type="submit" class="btn btn-primary">加點</button>
-                    </div>
-                </form>
+                </div>
             }
             @{
                 var pendingCount = order.Items.Count(i => !i.IsPrinted);
+                var hasPrintedItems = order.Items.Any(i => i.IsPrinted);
             }
-            @if (pendingCount > 0)
+            @if (pendingCount > 0 || !hasPrintedItems)
             {
-                <form asp-action="ConfirmPrint" method="post" class="mt-3">
-                    <input type="hidden" name="orderId" value="@order.Id" />
-                    <button type="submit" class="btn btn-outline-primary">確認出單（@pendingCount 項待出單）</button>
-                </form>
+                <div class="mt-3">
+                    @if (pendingCount > 0)
+                    {
+                        <form asp-action="ConfirmPrint" method="post" class="d-inline">
+                            <input type="hidden" name="orderId" value="@order.Id" />
+                            <button type="submit" class="btn btn-primary">確認訂單（@pendingCount 項）</button>
+                        </form>
+                    }
+                    @if (!hasPrintedItems)
+                    {
+                        <form asp-action="CancelPendingItems" method="post" class="d-inline" onsubmit="return confirm('確定要取消嗎？');">
+                            <input type="hidden" name="orderId" value="@order.Id" />
+                            <button type="submit" class="btn btn-outline-danger">取消</button>
+                        </form>
+                    }
+                </div>
             }
         </div>
     </div>
 
-    <form asp-action="Checkout" asp-route-id="@order.Id" method="post" onsubmit="return confirm('確定要結帳嗎？結帳後將無法再加點。');">
+    <form asp-action="Checkout" asp-route-id="@order.Id" method="post" class="mb-4" onsubmit="return confirm('確定要結帳嗎？結帳後將無法再加點。');">
         <button type="submit" class="btn btn-success btn-lg" @(order.Items.Count == 0 ? "disabled" : "")>結帳（應收 $@order.TotalAmount.ToString("F2")）</button>
     </form>
 }
 
-@if (order.Status == OrderStatus.Completed)
+@if (order.Status == OrderStatus.Completed || (order.Status == OrderStatus.Open && order.Items.Any(i => i.IsPrinted)))
 {
+    var isCancelBeforeCheckout = order.Status == OrderStatus.Open;
+    var voidTitle = isCancelBeforeCheckout ? "取消訂單" : "作廢訂單";
+    var voidConfirmText = isCancelBeforeCheckout
+        ? "確定要取消此訂單？此操作將記錄稽核紀錄且無法復原。"
+        : "確定要作廢此訂單？此操作將記錄稽核紀錄且無法復原。";
     <div class="card border-danger">
-        <div class="card-header text-danger">作廢訂單</div>
+        <div class="card-header text-danger">@voidTitle</div>
         <div class="card-body">
-            <form asp-action="Void" asp-route-id="@order.Id" method="post" class="row g-2 align-items-end" onsubmit="return confirm('確定要作廢此訂單？此操作將記錄稽核紀錄且無法復原。');">
+            <form asp-action="Void" asp-route-id="@order.Id" method="post" class="row g-2 align-items-end" onsubmit="return confirm('@voidConfirmText');">
                 <div class="col-auto flex-grow-1">
-                    <label class="form-label">作廢原因</label>
-                    <input type="text" name="Reason" class="form-control" required />
+                    <label class="form-label">@(isCancelBeforeCheckout ? "取消原因" : "作廢原因")</label>
+                    <input type="text" name="Reason" class="form-control" maxlength="200" required />
                 </div>
                 <div class="col-auto">
-                    <button type="submit" class="btn btn-danger">作廢</button>
+                    <button type="submit" class="btn btn-danger">@voidTitle</button>
                 </div>
             </form>
         </div>
@@ -167,3 +225,38 @@
 <form asp-action="Reprint" asp-route-id="@order.Id" method="post" class="d-inline">
     <button type="submit" class="btn btn-outline-secondary mt-4">補印出單</button>
 </form>
+
+@section Scripts {
+    <script>
+        document.querySelectorAll('.menu-item-card').forEach(function (btn) {
+            btn.addEventListener('click', function () {
+                document.getElementById('modalMenuItemId').value = this.dataset.id;
+                document.getElementById('modalItemName').textContent = this.dataset.name + '（$' + this.dataset.price + '）';
+                document.getElementById('modalQuantity').value = 1;
+                new bootstrap.Offcanvas(document.getElementById('addItemPanel')).show();
+            });
+        });
+
+        document.querySelectorAll('.qty-btn').forEach(function (btn) {
+            btn.addEventListener('click', function () {
+                var input = document.getElementById('modalQuantity');
+                var next = parseInt(input.value || '1', 10) + parseInt(this.dataset.step, 10);
+                input.value = Math.max(1, next);
+            });
+        });
+
+        // 防止網路較慢時使用者重複點擊送出，造成同一動作被送出兩次（例如重複加點）
+        document.querySelectorAll('form').forEach(function (form) {
+            form.addEventListener('submit', function (event) {
+                if (event.defaultPrevented) {
+                    return;
+                }
+                var submitBtn = form.querySelector('button[type="submit"]');
+                if (submitBtn && !submitBtn.disabled) {
+                    submitBtn.disabled = true;
+                    submitBtn.textContent = '處理中...';
+                }
+            });
+        });
+    </script>
+}
