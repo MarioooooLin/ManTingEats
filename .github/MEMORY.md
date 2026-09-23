@@ -45,6 +45,23 @@
 
 ---
 
+### [2026-09-23] 補齊 RWD：訂單詳情與營收報表表格加上 table-responsive
+
+**變更內容**
+
+- `Views/Order/Details.cshtml` 品項清單表格、`Views/Report/Index.cshtml` 通路營收拆分與品項銷售排行兩張表格，補上 `table-responsive` 包裝；手機上這幾個表格原本會被壓縮或橫向溢出。
+- 報表頁「今日/本週/本月」`.btn-group` 加上 `flex-wrap gap-2`，避免窄螢幕手機（約 320px）三個按鈕擠在一起。
+
+**決策原因**
+
+- 抽查全站頁面後發現，先前另一個工作階段做的焦糖橘 Design System 改版已涵蓋 4 個列表頁的 `table-responsive`，但漏了訂單詳情（外場人員最常用的頁面）與營收報表這兩處。
+
+**驗證結果**
+
+- `docker compose build/up` 成功，已重建容器。
+
+---
+
 ### [2026-09-23] 修正容器時區為 Asia/Taipei + 清空測試訂單資料
 
 **變更內容**
