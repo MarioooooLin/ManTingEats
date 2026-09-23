@@ -9,46 +9,51 @@
         <p class="text-muted">ManTingEats 內部管理後台</p>
     </div>
 
-    <div class="row g-3">
-        <div class="col-md-3">
-            <div class="card dashboard-card h-100">
+    <div class="row row-cols-1 row-cols-sm-2 row-cols-xl-5 g-3">
+        <div class="col">
+            <div class="card dashboard-card card-highlight h-100">
                 <div class="card-body">
-                    <h5 class="card-title">菜單管理</h5>
-                    <p class="card-text text-muted">新增、編輯菜單品項與上下架狀態。</p>
-                    <a asp-controller="Menu" asp-action="Index" class="btn btn-primary">前往菜單管理</a>
-                </div>
-            </div>
-        </div>
-        <div class="col-md-3">
-            <div class="card dashboard-card h-100">
-                <div class="card-body">
+                    <div class="card-icon">🧾</div>
                     <h5 class="card-title">訂單</h5>
                     <p class="card-text text-muted">建立內用/外帶訂單、加點、結帳與作廢。</p>
                     <a asp-controller="Order" asp-action="Index" class="btn btn-primary">前往訂單</a>
                 </div>
             </div>
         </div>
-        <div class="col-md-3">
+        <div class="col">
             <div class="card dashboard-card h-100">
                 <div class="card-body">
+                    <div class="card-icon">📋</div>
+                    <h5 class="card-title">菜單管理</h5>
+                    <p class="card-text text-muted">新增、編輯菜單品項與上下架狀態。</p>
+                    <a asp-controller="Menu" asp-action="Index" class="btn btn-primary">前往菜單管理</a>
+                </div>
+            </div>
+        </div>
+        <div class="col">
+            <div class="card dashboard-card h-100">
+                <div class="card-body">
+                    <div class="card-icon">📅</div>
                     <h5 class="card-title">訂位記錄</h5>
                     <p class="card-text text-muted">登記與查詢顧客訂位。</p>
                     <a asp-controller="Reservation" asp-action="Index" class="btn btn-primary">前往訂位記錄</a>
                 </div>
             </div>
         </div>
-        <div class="col-md-3">
+        <div class="col">
             <div class="card dashboard-card h-100">
                 <div class="card-body">
+                    <div class="card-icon">💰</div>
                     <h5 class="card-title">支出記錄</h5>
                     <p class="card-text text-muted">記錄食材、水電、房租等營運支出。</p>
                     <a asp-controller="Expense" asp-action="Index" class="btn btn-primary">前往支出記錄</a>
                 </div>
             </div>
         </div>
-        <div class="col-md-3">
+        <div class="col">
             <div class="card dashboard-card h-100">
                 <div class="card-body">
+                    <div class="card-icon">📊</div>
                     <h5 class="card-title">營收報表</h5>
                     <p class="card-text text-muted">查看指定日期區間的營收、通路拆分與品項排行。</p>
                     <a asp-controller="Report" asp-action="Index" class="btn btn-primary">前往營收報表</a>

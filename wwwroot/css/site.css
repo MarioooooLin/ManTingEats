@@ -9,7 +9,7 @@ html {
 }
 
 .btn:focus, .btn:active:focus, .btn-link.nav-link:focus, .form-control:focus, .form-check-input:focus {
-  box-shadow: 0 0 0 0.1rem white, 0 0 0 0.25rem #258cfb;
+  box-shadow: 0 0 0 0.1rem white, 0 0 0 0.25rem var(--brand-primary);
 }
 
 html {
@@ -31,23 +31,179 @@ body {
 }
 
 /* ManTingEats 後台樣式 */
-.navbar-nav .nav-link.active {
-  font-weight: 600;
-  color: var(--bs-primary) !important;
+:root {
+  --brand-primary: #d97706;
+  --brand-primary-rgb: 217, 119, 6;
+  --brand-primary-dark: #b45309;
+  --brand-primary-darker: #92400e;
+  --brand-primary-light: #fef3e2;
+  --surface-radius: 0.75rem;
+  --surface-shadow-sm: 0 1px 3px rgba(0, 0, 0, .06), 0 1px 2px rgba(0, 0, 0, .04);
+  --surface-shadow-md: 0 10px 24px rgba(0, 0, 0, .08);
+
+  /* 覆寫 Bootstrap 主色，讓 badge/連結/focus-ring/nav-pills 等元件連動換色 */
+  --bs-primary: var(--brand-primary);
+  --bs-primary-rgb: var(--brand-primary-rgb);
+  --bs-link-color: var(--brand-primary);
+  --bs-link-color-rgb: var(--brand-primary-rgb);
+  --bs-link-hover-color: var(--brand-primary-dark);
+}
+
+.btn-primary {
+  --bs-btn-bg: var(--brand-primary);
+  --bs-btn-border-color: var(--brand-primary);
+  --bs-btn-hover-bg: var(--brand-primary-dark);
+  --bs-btn-hover-border-color: var(--brand-primary-dark);
+  --bs-btn-active-bg: var(--brand-primary-darker);
+  --bs-btn-active-border-color: var(--brand-primary-darker);
+  --bs-btn-focus-shadow-rgb: var(--brand-primary-rgb);
+  --bs-btn-disabled-bg: var(--brand-primary);
+  --bs-btn-disabled-border-color: var(--brand-primary);
+}
+
+.btn-outline-primary {
+  --bs-btn-color: var(--brand-primary);
+  --bs-btn-border-color: var(--brand-primary);
+  --bs-btn-hover-bg: var(--brand-primary);
+  --bs-btn-hover-border-color: var(--brand-primary);
+  --bs-btn-active-bg: var(--brand-primary-dark);
+  --bs-btn-active-border-color: var(--brand-primary-dark);
+  --bs-btn-focus-shadow-rgb: var(--brand-primary-rgb);
+}
+
+.nav-pills {
+  --bs-nav-pills-link-active-bg: var(--brand-primary);
 }
 
 .page-header {
   margin-bottom: 1.5rem;
 }
 
-.dashboard-card {
-  transition: box-shadow 0.15s ease-in-out;
-}
-
-.dashboard-card:hover {
-  box-shadow: 0 0.5rem 1rem rgba(0, 0, 0, 0.1);
+.page-header h1 {
+  font-weight: 700;
+  letter-spacing: -0.01em;
 }
 
 .table > :not(caption) > * > * {
   vertical-align: middle;
+}
+
+/* Navbar */
+.navbar {
+  box-shadow: var(--surface-shadow-sm);
+}
+
+.navbar-brand {
+  font-weight: 700;
+  color: var(--brand-primary-darker) !important;
+  display: flex;
+  align-items: center;
+  gap: .4rem;
+}
+
+.navbar-nav .nav-link {
+  position: relative;
+  font-weight: 500;
+}
+
+.navbar-nav .nav-link.active {
+  font-weight: 600;
+  color: var(--brand-primary-darker) !important;
+}
+
+.navbar-nav .nav-link.active::after {
+  content: "";
+  position: absolute;
+  left: .75rem;
+  right: .75rem;
+  bottom: 0;
+  height: 2px;
+  background: var(--brand-primary);
+  border-radius: 2px;
+}
+
+.user-chip {
+  background: var(--brand-primary-light);
+  color: var(--brand-primary-darker);
+  border-radius: 999px;
+  padding: .3rem .9rem;
+  font-size: .875rem;
+  font-weight: 600;
+}
+
+/* Dashboard 卡片 */
+.dashboard-card {
+  border: 1px solid #eee;
+  border-radius: var(--surface-radius);
+  box-shadow: var(--surface-shadow-sm);
+  transition: transform .15s ease, box-shadow .15s ease;
+}
+
+.dashboard-card:hover {
+  transform: translateY(-3px);
+  box-shadow: var(--surface-shadow-md);
+}
+
+.dashboard-card .card-icon {
+  width: 44px;
+  height: 44px;
+  border-radius: 12px;
+  background: var(--brand-primary-light);
+  color: var(--brand-primary-darker);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.25rem;
+  margin-bottom: .75rem;
+}
+
+.dashboard-card.card-highlight {
+  border-color: var(--brand-primary);
+  background: linear-gradient(180deg, var(--brand-primary-light) 0%, #fff 140px);
+}
+
+/* 點餐頁品項卡片 / 數量步進器 */
+.menu-item-card {
+  border-width: 2px;
+  border-radius: var(--surface-radius);
+  min-height: 92px;
+  transition: transform .1s ease, box-shadow .15s ease, border-color .15s ease;
+}
+
+.menu-item-card:hover {
+  box-shadow: var(--surface-shadow-sm);
+}
+
+.menu-item-card:active {
+  transform: scale(0.97);
+}
+
+.qty-stepper {
+  display: flex;
+  align-items: stretch;
+  gap: .5rem;
+}
+
+.qty-stepper .qty-btn {
+  width: 48px;
+  font-size: 1.25rem;
+  font-weight: 700;
+  flex: 0 0 auto;
+}
+
+.qty-stepper input {
+  text-align: center;
+  font-size: 1.1rem;
+  font-weight: 600;
+}
+
+/* Soft badge 狀態樣式 */
+.badge-soft-warning { background: #fef3c7; color: #92400e; font-weight: 600; }
+.badge-soft-success { background: #dcfce7; color: #166534; font-weight: 600; }
+.badge-soft-secondary { background: #f1f5f9; color: #475569; font-weight: 600; }
+.badge-soft-primary { background: var(--brand-primary-light); color: var(--brand-primary-darker); font-weight: 600; }
+.badge-soft-info { background: #e0f2fe; color: #075985; font-weight: 600; }
+
+.card.border-danger {
+  background: #fff5f5;
 }
