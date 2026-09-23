@@ -4,6 +4,137 @@
 
 ---
 
+### [2026-09-23] UI/UX 美化：焦糖橘 Design System、點餐頁 Offcanvas、清單頁統一化
+
+**變更內容**
+
+- **Phase A（全域）**：`wwwroot/css/site.css` 新增焦糖橘（`#d97706`）Design Token，覆寫 Bootstrap `--bs-primary` 系列變數，讓 `.btn-primary`/`.btn-outline-primary`/`.nav-pills`/連結/focus-ring 全站連動換色；`Views/Shared/_Layout.cshtml.css` 移除舊 MVC 範本殘留的寫死藍色（該檔載入順序在 site.css 之後，原本會蓋掉新配色）；Navbar（`Views/Shared/_Layout.cshtml`）加品牌 icon（🐶🐱）、active 底線指示、使用者名稱改 chip 樣式；首頁（`Views/Home/Index.cshtml`）五張功能卡片加圖示、「訂單」設為主打卡片、grid 改為 RWD（`row-cols-1/sm-2/xl-5`）。
+- **Phase B（點餐頁）**：`Views/Order/Details.cshtml` 加點面板由 Modal 改為底部 Offcanvas，數量輸入改 +/- 步進器（`.qty-stepper`）；訂單/通路/出單狀態 badge 改用 soft-color 樣式（`.badge-soft-*`）；危險操作卡片（取消/作廢）加淺紅底色警示。
+- **Phase C（清單頁）**：`Views/Order/Index.cshtml`、`Views/Menu/Index.cshtml` 狀態 badge 統一改 `.badge-soft-*`；Order/Menu/Reservation/Expense 四個清單頁表格皆加 `table-responsive`，避免手機橫向溢出。
+
+**決策原因**
+
+- 原專案為 Bootstrap 5 預設樣式未經客製，無品牌識別、資訊層級扁平；經使用者確認採焦糖橘為主色，分三階段（全域 → 核心操作頁 → 清單頁）漸進套用，降低單次變動風險。
+- 點餐為現場最高頻操作，Offcanvas + 數量步進器比 Modal + number input 更適合觸控情境。
+
+**驗證結果**
+
+- 每階段套用後皆執行 `dotnet build` 確認成功，並以 `dotnet run` 實機預覽三階段畫面無誤。
+- 本次變更僅涉及 CSS/Razor 視圖層，未觸碰 Controller/Model/資料庫結構。
+
+---
+
+### [2026-09-23] 訂單新增「當日流水號」（內用/外帶合併計數）
+
+**變更內容**
+
+- `Models/Entities/Order.cs` 新增 `DailyNumber`（int），僅供人員溝通顯示用，非資料庫主鍵；`Id` 保留作為內部路由/關聯用途，不對外顯示。
+- `Controllers/OrderController.cs` 新增 `GetNextDailyNumberAsync`：以 `Asia/Taipei` 時區（固定 UTC+8，台灣無日光節約時間）明確計算「今天」邊界，取當日最大 `DailyNumber` +1；不依賴容器系統時區（目前 Dockerfile 未設 `TZ`，容器預設 UTC，若直接用系統本地時間判斷會在台灣時間早上 8 點才跨日）。內用/外帶**合併計數**（不分通路各自流水）。
+- 併發保護：採簡單的「查當日最大值 +1」，未加悲觀鎖／唯一索引重試機制——依店內單一收銀情境評估，過度設計不符合專案最小改動原則；未來若真的出現多終端同時建單需求再補強。
+- 新增 Migration `AddOrderDailyNumber`：新增欄位並用 SQL 回填既有 7 筆訂單的 `DailyNumber`（依台灣時區分組、依 `CreatedAt` 排序編號）。
+- 顯示端改為 `DailyNumber`：`Views/Order/Index.cshtml`、`Views/Order/Details.cshtml`（標題/H1）、`Views/Order/Create.cshtml`（併桌提示連結文字）、`Services/LanReceiptPrinterService.cs`（出單內容的「訂單編號」）；所有 `asp-route-id` 路由參數維持使用 `Id`，不受影響。
+
+**決策原因**
+
+- `Id` 是 DB auto-increment 主鍵，只增不減、取消訂單也不刪列（軟取消保留稽核），長期會變得很大且不利人員溝通；改用每日重置的流水號給人看，`Id` 仍留給系統內部使用，兩者關注點分離。
+- 時區改用 `Asia/Taipei`（IANA ID，.NET 9 跨平台皆可辨識）明確計算，避免依賴容器系統時區設定造成「今天」邊界跑掉。
+
+**驗證結果**
+
+- `dotnet build` 成功；`dotnet ef database update` 套用成功，既有 7 筆訂單已回填流水號；已重建並重啟 Docker `web` 容器。
+
+---
+
+### [2026-09-23] 修正容器時區為 Asia/Taipei + 清空測試訂單資料
+
+**變更內容**
+
+- `Dockerfile` 新增 `ENV TZ=Asia/Taipei`：容器原本預設 UTC，導致 `Views/Order/Index.cshtml` 的 `CreatedAt.ToLocalTime()`、`ReportController` 的 `DateTime.Today` 等所有依賴伺服器本地時間的邏輯全部偏差 8 小時；改在容器層級設定時區，一次修正所有相關顯示與日期判斷，不需逐一改程式碼。已驗證容器內 `date` 指令顯示為正確的台灣時間（CST）。
+- 清空開發資料庫的 `OrderItems`、`Orders` 資料表並重置 `AUTO_INCREMENT`，供使用者重新從頭測試訂單流程（開發/測試環境操作，非正式環境）。
+
+**決策原因**
+
+- 時區問題影響範圍廣（訂單建立時間顯示、每日流水號邊界、營收報表區間），在容器層級一次修正比在各處程式碼加時區轉換更不容易遺漏。
+
+**驗證結果**
+
+- 已重建並重啟 Docker `web` 容器，`docker exec ... date` 確認顯示 `CST` 且時間正確；`Orders`/`OrderItems` 已確認清空為 0 筆。
+
+---
+
+### [2026-09-23] 修正加點/送出表單重複提交（double-submit）
+
+**變更內容**
+
+- `Views/Order/Details.cshtml` 新增全域 JS：頁面上所有 `<form>` 送出時立即停用其 submit 按鈕並改文字為「處理中...」，避免網路較慢時使用者重複點擊造成同一動作送出兩次（例如加點被重複記錄）；若表單有 `onsubmit="return confirm(...)"` 且使用者取消，會透過 `event.defaultPrevented` 判斷跳過，不影響原本的取消行為。
+- 同時把加點 Modal 的數量欄位補上 `required` + `step="1"`（延續上次的欄位檢查修正）。
+
+**決策原因**
+
+- 純前端防呆，屬於低風險、不影響後端邏輯的修正；伺服器端本身沒有重複品項的檢查機制，長期若要更嚴謹可考慮加 idempotency key，但目前規模下前端鎖按鈕已足夠解決回報的問題。
+
+**驗證結果**
+
+- `dotnet build` 成功，已重建並重啟 Docker `web` 容器。
+
+---
+
+### [2026-09-23] 加點流程新增「取消」（免理由）+ 修正版面間距
+
+**變更內容**
+
+- `Controllers/OrderController.cs` 新增 `CancelPendingItems`：刪除訂單中所有**尚未出單**（`IsPrinted == false`）的品項並重算金額，免填理由；若刪除後訂單品項歸零（代表這張單從未出過單、廚房從沒收到通知），連同訂單一併標記 `Voided`（系統自動填入 `VoidReason`），不需使用者輸入原因。
+- `Views/Order/Details.cshtml`：待出單區塊原本只有「確認出單」，改為「確認訂單」+「取消」兩顆並排按鈕；「新增訂單」與「加點」共用同一組按鈕與 action，依當下是否已出過單自動決定「取消」的實際效果（整單作廢 or 只丟棄本次加點）。
+- 版面調整：「結帳」按鈕與下方「取消訂單」卡片原本緊貼，替 `Checkout` 表單加上 `mb-4` 補上間距。
+
+**決策原因**
+
+- 「取消訂單」（`Void`，需填理由）保留給「已出單、需留稽核痕跡」的情境；新的「取消」只處理「還沒出單」的部分，兩者職責分開，避免使用者被要求為根本沒發生過的事填寫理由。
+
+**驗證結果**
+
+- `dotnet build` 成功，已重建並重啟 Docker `web` 容器。
+
+---
+
+### [2026-09-23] Open 訂單可直接取消（擴充 Void 動作）
+
+**變更內容**
+
+- `Controllers/OrderController.cs` 的 `Void` 動作：允許條件由「僅 `Completed`」擴充為「`Open` 或 `Completed`」，讓使用者可在結帳前直接取消訂單（例如誤按新增訂單、未點餐）。
+- 作廢通知列印邏輯改為「僅當訂單內有任一品項已出單（`IsPrinted == true`）才列印」，避免對空訂單或尚未送廚房的訂單列印無意義的作廢通知。
+- `Views/Order/Details.cshtml`：原本僅 `Completed` 狀態顯示的「作廢訂單」卡片，改為 `Open` 或 `Completed` 皆顯示；`Open` 狀態下文案改為「取消訂單/取消原因」，`Completed` 維持「作廢訂單/作廢原因」，共用同一個 `Void` 表單與稽核紀錄（`VoidReason`/`VoidedByEmployeeId`）。
+
+**決策原因**
+
+- 對照方案 A/B/C：選擇擴充既有 `Void` 動作（方案 A），統一「訂單不成立」的稽核入口，避免日後「取消已加點但未結帳的訂單」還要再開一條新流程；理由欄位維持必填以符合稽核要求（copilot-instructions 4.2 / 5）。
+
+**驗證結果**
+
+- `dotnet build` 成功。
+- 已重建並重啟 Docker `web` 容器套用變更。
+
+---
+
+### [2026-09-23] 點餐介面優化：下拉選單改為分類頁籤 + 卡片點選
+
+**變更內容**
+
+- `Views/Order/Details.cshtml` 點餐/加點區塊改版：原本單一 `<select>` 品項下拉選單，改為依 `MenuCategory` 分組的頁籤（吃/喝/其他），每個分類下以卡片方式列出品項（顯示名稱與價格），點擊卡片跳出 Modal 輸入數量與備註後再送出。
+- 僅修改 View 層（Razor + 內嵌 JS），`AddItem` 表單欄位（`MenuItemId`/`Quantity`/`Note`）與 `OrderController.AddItem`、`AddOrderItemCommand` 皆未變動，無 Controller / Model / DB 異動。
+
+**決策原因**
+
+- 品項一多，下拉選單需捲動查找，操作效率差且不直觀；改為分類頁籤 + 卡片點選，符合實體 POS 操作習慣，外場加點更快速。
+- 選擇沿用既有 `AddItem` 單筆送出流程（而非批次一次送出多品項），維持最小改動、不動後端邏輯與資料流。
+
+**驗證結果**
+
+- `dotnet build` 成功，無編譯錯誤。
+- 出單列印相關流程本次未變動（使用者反映紙張浪費疑慮，待與內部討論定案後再調整，暫不處理）。
+
+---
+
 ### [2026-09-22] 出單列印模組實作（v3）+ 改為明確「確認出單」觸發
 
 **變更內容**
