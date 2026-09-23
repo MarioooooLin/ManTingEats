@@ -103,6 +103,8 @@ public sealed class OrderController : Controller
         var order = await _db.Orders
             .Include(o => o.Items)
                 .ThenInclude(i => i.MenuItem)
+            .Include(o => o.Items)
+                .ThenInclude(i => i.AddOns)
             .Include(o => o.CreatedByEmployee)
             .Include(o => o.VoidedByEmployee)
             .SingleOrDefaultAsync(o => o.Id == id);
@@ -115,15 +117,26 @@ public sealed class OrderController : Controller
             .Where(m => m.IsActive)
             .OrderBy(m => m.Category).ThenBy(m => m.Name)
             .ToListAsync();
+        var activeAddOns = await _db.AddOns
+            .Where(a => a.IsActive)
+            .OrderBy(a => a.Name)
+            .ToListAsync();
 
-        return View(new OrderDetailsViewModel { Order = order, ActiveMenuItems = activeMenuItems });
+        return View(new OrderDetailsViewModel { Order = order, ActiveMenuItems = activeMenuItems, ActiveAddOns = activeAddOns });
     }
+
+    /// <summary>包含加料金額的訂單總額重算，項目集合需已 Include AddOns。</summary>
+    private static decimal ComputeTotal(Order order) =>
+        order.Items.Sum(i => i.UnitPrice * i.Quantity + i.AddOns.Sum(a => a.UnitPrice * a.Quantity));
 
     [HttpPost]
     [ValidateAntiForgeryToken]
     public async Task<IActionResult> AddItem(int orderId, AddOrderItemCommand command)
     {
-        var order = await _db.Orders.Include(o => o.Items).SingleOrDefaultAsync(o => o.Id == orderId);
+        var order = await _db.Orders
+            .Include(o => o.Items)
+                .ThenInclude(i => i.AddOns)
+            .SingleOrDefaultAsync(o => o.Id == orderId);
         if (order is null)
         {
             return NotFound();
@@ -148,18 +161,45 @@ public sealed class OrderController : Controller
             return RedirectToAction(nameof(Details), new { id = orderId });
         }
 
+        var isCustomized = menuItem.SupportsAddOns || menuItem.SupportsSpiceLevel;
+        // 客製化品項恆為 1（後端強制，不信任前端），避免多份是否都套用同一客製化的計價歧義
         var newItem = new OrderItem
         {
             MenuItemId = menuItem.Id,
             UnitPrice = menuItem.Price,
-            Quantity = command.Quantity,
-            Note = command.Note
+            Quantity = isCustomized ? 1 : command.Quantity,
+            Note = command.Note,
+            SpiceLevel = menuItem.SupportsSpiceLevel ? (command.SpiceLevel ?? Models.Enums.SpiceLevel.Mild) : null
         };
+
+        if (menuItem.SupportsAddOns && command.AddOns is { Count: > 0 })
+        {
+            var addOnIds = command.AddOns.Select(a => a.AddOnId).Distinct().ToList();
+            var activeAddOns = await _db.AddOns.Where(a => addOnIds.Contains(a.Id) && a.IsActive).ToListAsync();
+            if (activeAddOns.Count != addOnIds.Count)
+            {
+                TempData["Error"] = "部分加料已下架，請重新選擇。";
+                return RedirectToAction(nameof(Details), new { id = orderId });
+            }
+
+            foreach (var selection in command.AddOns)
+            {
+                var addOn = activeAddOns.Single(a => a.Id == selection.AddOnId);
+                newItem.AddOns.Add(new OrderItemAddOn
+                {
+                    AddOnId = addOn.Id,
+                    AddOnName = addOn.Name,
+                    UnitPrice = addOn.Price,
+                    Quantity = selection.Quantity
+                });
+            }
+        }
+
         order.Items.Add(newItem);
-        // 每次加點皮重新加總，確保金額與品項清單一致
-        order.TotalAmount = order.Items.Sum(i => i.UnitPrice * i.Quantity);
+        // 每次加點皮重新加總，確保金額與品項清單一致（含加料）
+        order.TotalAmount = ComputeTotal(order);
         await _db.SaveChangesAsync();
-        TempData["Success"] = $"已加點 {menuItem.Name} x{command.Quantity}。";
+        TempData["Success"] = $"已加點 {menuItem.Name} x{newItem.Quantity}。";
 
         return RedirectToAction(nameof(Details), new { id = orderId });
     }
@@ -171,6 +211,8 @@ public sealed class OrderController : Controller
         var order = await _db.Orders
             .Include(o => o.Items)
                 .ThenInclude(i => i.MenuItem)
+            .Include(o => o.Items)
+                .ThenInclude(i => i.AddOns)
             .SingleOrDefaultAsync(o => o.Id == orderId);
         if (order is null)
         {
@@ -224,7 +266,10 @@ public sealed class OrderController : Controller
     [ValidateAntiForgeryToken]
     public async Task<IActionResult> CancelPendingItems(int orderId)
     {
-        var order = await _db.Orders.Include(o => o.Items).SingleOrDefaultAsync(o => o.Id == orderId);
+        var order = await _db.Orders
+            .Include(o => o.Items)
+                .ThenInclude(i => i.AddOns)
+            .SingleOrDefaultAsync(o => o.Id == orderId);
         if (order is null)
         {
             return NotFound();
@@ -242,7 +287,7 @@ public sealed class OrderController : Controller
             order.Items.Remove(item);
             _db.OrderItems.Remove(item);
         }
-        order.TotalAmount = order.Items.Sum(i => i.UnitPrice * i.Quantity);
+        order.TotalAmount = ComputeTotal(order);
 
         // 訂單從未出過單，代表廚房從未收到通知，直接連同訂單一併作廢，不需使用者輸入理由
         if (order.Items.Count == 0)
@@ -261,7 +306,10 @@ public sealed class OrderController : Controller
     [ValidateAntiForgeryToken]
     public async Task<IActionResult> RemoveItem(int orderId, int orderItemId)
     {
-        var order = await _db.Orders.Include(o => o.Items).SingleOrDefaultAsync(o => o.Id == orderId);
+        var order = await _db.Orders
+            .Include(o => o.Items)
+                .ThenInclude(i => i.AddOns)
+            .SingleOrDefaultAsync(o => o.Id == orderId);
         if (order is null)
         {
             return NotFound();
@@ -278,7 +326,7 @@ public sealed class OrderController : Controller
         {
             order.Items.Remove(item);
             _db.OrderItems.Remove(item);
-            order.TotalAmount = order.Items.Sum(i => i.UnitPrice * i.Quantity);
+            order.TotalAmount = ComputeTotal(order);
             await _db.SaveChangesAsync();
             TempData["Success"] = "已移除品項。";
         }
@@ -293,6 +341,8 @@ public sealed class OrderController : Controller
         var order = await _db.Orders
             .Include(o => o.Items)
                 .ThenInclude(i => i.MenuItem)
+            .Include(o => o.Items)
+                .ThenInclude(i => i.AddOns)
             .SingleOrDefaultAsync(o => o.Id == id);
         if (order is null)
         {
@@ -328,6 +378,8 @@ public sealed class OrderController : Controller
         var order = await _db.Orders
             .Include(o => o.Items)
                 .ThenInclude(i => i.MenuItem)
+            .Include(o => o.Items)
+                .ThenInclude(i => i.AddOns)
             .SingleOrDefaultAsync(o => o.Id == id);
         if (order is null)
         {
@@ -370,6 +422,8 @@ public sealed class OrderController : Controller
         var order = await _db.Orders
             .Include(o => o.Items)
                 .ThenInclude(i => i.MenuItem)
+            .Include(o => o.Items)
+                .ThenInclude(i => i.AddOns)
             .SingleOrDefaultAsync(o => o.Id == id);
         if (order is null)
         {

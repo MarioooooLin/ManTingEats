@@ -15,6 +15,8 @@ public sealed class AppDbContext : DbContext
     public DbSet<OrderItem> OrderItems => Set<OrderItem>();
     public DbSet<Reservation> Reservations => Set<Reservation>();
     public DbSet<Expense> Expenses => Set<Expense>();
+    public DbSet<AddOn> AddOns => Set<AddOn>();
+    public DbSet<OrderItemAddOn> OrderItemAddOns => Set<OrderItemAddOn>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -60,6 +62,28 @@ public sealed class AppDbContext : DbContext
             entity.HasOne(e => e.MenuItem)
                 .WithMany(m => m.OrderItems)
                 .HasForeignKey(e => e.MenuItemId)
+                .OnDelete(DeleteBehavior.Restrict);
+        });
+
+        modelBuilder.Entity<AddOn>(entity =>
+        {
+            entity.Property(e => e.Name).HasMaxLength(50);
+            entity.Property(e => e.Price).HasPrecision(10, 2);
+        });
+
+        modelBuilder.Entity<OrderItemAddOn>(entity =>
+        {
+            entity.Property(e => e.AddOnName).HasMaxLength(50);
+            entity.Property(e => e.UnitPrice).HasPrecision(10, 2);
+
+            entity.HasOne(e => e.OrderItem)
+                .WithMany(o => o.AddOns)
+                .HasForeignKey(e => e.OrderItemId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            entity.HasOne(e => e.AddOn)
+                .WithMany(a => a.OrderItemAddOns)
+                .HasForeignKey(e => e.AddOnId)
                 .OnDelete(DeleteBehavior.Restrict);
         });
 

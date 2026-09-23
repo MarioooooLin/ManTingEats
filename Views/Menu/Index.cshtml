@@ -1,55 +1,119 @@
-@model List<ManTingEats.Models.Entities.MenuItem>
+@model ManTingEats.Models.MenuIndexViewModel
 @{
     ViewData["Title"] = "菜單管理";
 }
 
 <div class="page-header d-flex justify-content-between align-items-center">
     <h1 class="mb-0">菜單管理</h1>
-    <a asp-action="Create" class="btn btn-primary">+ 新增品項</a>
 </div>
 
-@if (Model.Count == 0)
-{
-    <p class="text-muted">尚無菜單品項，請先新增。</p>
-}
-else
-{
-    <div class="card">
-        <div class="table-responsive">
-        <table class="table table-hover mb-0">
-            <thead>
-                <tr>
-                    <th>分類</th>
-                    <th>名稱</th>
-                    <th class="text-end">售價</th>
-                    <th>狀態</th>
-                    <th></th>
-                </tr>
-            </thead>
-            <tbody>
-                @foreach (var item in Model)
-                {
-                    <tr>
-                        <td>@item.Category.ToDisplayText()</td>
-                        <td>@item.Name</td>
-                        <td class="text-end">$@item.Price.ToString("F2")</td>
-                        <td>
-                            <span class="badge @(item.IsActive ? "badge-soft-success" : "badge-soft-secondary")">
-                                @(item.IsActive ? "上架中" : "已下架")
-                            </span>
-                        </td>
-                        <td class="text-end">
-                            <a asp-action="Edit" asp-route-id="@item.Id" class="btn btn-sm btn-outline-secondary">編輯</a>
-                            <form asp-action="ToggleActive" asp-route-id="@item.Id" method="post" class="d-inline">
-                                <button type="submit" class="btn btn-sm @(item.IsActive ? "btn-outline-danger" : "btn-outline-success")">
-                                    @(item.IsActive ? "下架" : "上架")
-                                </button>
-                            </form>
-                        </td>
-                    </tr>
-                }
-            </tbody>
-        </table>
+<ul class="nav nav-pills mb-3">
+    <li class="nav-item">
+        <button class="nav-link active" data-bs-toggle="pill" data-bs-target="#tab-items" type="button">品項</button>
+    </li>
+    <li class="nav-item">
+        <button class="nav-link" data-bs-toggle="pill" data-bs-target="#tab-addons" type="button">加料</button>
+    </li>
+</ul>
+
+<div class="tab-content">
+    <div class="tab-pane fade show active" id="tab-items">
+        <div class="d-flex justify-content-end mb-3">
+            <a asp-action="Create" class="btn btn-primary">+ 新增品項</a>
         </div>
+        @if (Model.Items.Count == 0)
+        {
+            <p class="text-muted">尚無菜單品項，請先新增。</p>
+        }
+        else
+        {
+            <div class="card">
+                <div class="table-responsive">
+                <table class="table table-hover mb-0">
+                    <thead>
+                        <tr>
+                            <th>分類</th>
+                            <th>名稱</th>
+                            <th class="text-end">售價</th>
+                            <th>客製化</th>
+                            <th>狀態</th>
+                            <th></th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @foreach (var item in Model.Items)
+                        {
+                            <tr>
+                                <td>@item.Category.ToDisplayText()</td>
+                                <td>@item.Name</td>
+                                <td class="text-end">$@item.Price.ToString("F2")</td>
+                                <td>
+                                    @if (item.SupportsAddOns)
+                                    {
+                                        <span class="badge badge-soft-info me-1">可加料</span>
+                                    }
+                                    @if (item.SupportsSpiceLevel)
+                                    {
+                                        <span class="badge badge-soft-warning">可調辣</span>
+                                    }
+                                </td>
+                                <td>
+                                    <span class="badge @(item.IsActive ? "badge-soft-success" : "badge-soft-secondary")">
+                                        @(item.IsActive ? "上架中" : "已下架")
+                                    </span>
+                                </td>
+                                <td class="text-end">
+                                    <a asp-action="Edit" asp-route-id="@item.Id" class="btn btn-sm btn-outline-secondary">編輯</a>
+                                    <form asp-action="ToggleActive" asp-route-id="@item.Id" method="post" class="d-inline">
+                                        <button type="submit" class="btn btn-sm @(item.IsActive ? "btn-outline-danger" : "btn-outline-success")">
+                                            @(item.IsActive ? "下架" : "上架")
+                                        </button>
+                                    </form>
+                                </td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+                </div>
+            </div>
+        }
     </div>
-}
+
+    <div class="tab-pane fade" id="tab-addons">
+        <div class="d-flex justify-content-end mb-3">
+            <a asp-action="CreateAddOn" class="btn btn-primary">+ 新增加料</a>
+        </div>
+        @if (Model.AddOns.Count == 0)
+        {
+            <p class="text-muted">尚無加料項目，請先新增。</p>
+        }
+        else
+        {
+            <div class="row row-cols-2 row-cols-md-3 row-cols-lg-4 g-3" style="max-height: 520px; overflow-y: auto;">
+                @foreach (var addOn in Model.AddOns)
+                {
+                    <div class="col">
+                        <div class="addon-card">
+                            <div class="d-flex justify-content-between align-items-start mb-2">
+                                <div class="fw-bold">@addOn.Name</div>
+                                <span class="badge @(addOn.IsActive ? "badge-soft-success" : "badge-soft-secondary")">
+                                    @(addOn.IsActive ? "上架中" : "已下架")
+                                </span>
+                            </div>
+                            <div class="text-brand fw-bold mb-3">+$@addOn.Price.ToString("F2")</div>
+                            <div class="d-flex gap-2">
+                                <a asp-action="EditAddOn" asp-route-id="@addOn.Id" class="btn btn-sm btn-outline-secondary flex-grow-1">編輯</a>
+                                <form asp-action="ToggleAddOnActive" asp-route-id="@addOn.Id" method="post" class="flex-grow-1">
+                                    <button type="submit" class="btn btn-sm w-100 @(addOn.IsActive ? "btn-outline-danger" : "btn-outline-success")">
+                                        @(addOn.IsActive ? "下架" : "上架")
+                                    </button>
+                                </form>
+                            </div>
+                        </div>
+                    </div>
+                }
+            </div>
+        }
+    </div>
+</div>
+

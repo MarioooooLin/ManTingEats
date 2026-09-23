@@ -4,6 +4,69 @@
 
 ---
 
+### [2026-09-23] UI/UX 優化：點餐客製化面板與加料管理套用焦糖橘 Design System
+
+**變更內容**
+
+- `Views/Order/Details.cshtml` 客製化 Offcanvas：辣度改為 `.spice-btn-group`（選中態焦糖橘實心底、44px 觸控高度）；加料勾選改為整列變色（`.addon-row-selected`）取代單純小 checkbox；小計＋加點按鈕合併為 `.offcanvas-sticky-footer` 固定於底部。
+- `Views/Menu/Index.cshtml` 加料頁籤由純表格改為卡片網格（`.addon-card`），與品項卡片視覺風格一致。
+- `Views/Menu/Create.cshtml`/`Edit.cshtml` 的兩個客製化旗標改用 `.customization-card` 包裹＋`form-switch` 開關樣式，並加上說明文字。
+- `wwwroot/css/site.css` 新增對應 CSS：`.spice-btn-group`、`.addon-row`/`.addon-row-selected`、`.offcanvas-sticky-footer`、`.addon-card`、`.customization-card`、`.text-brand`。
+
+**決策原因**
+
+- 沿用既有焦糖橘 Design Token（`--brand-primary` 系列），維持全站視覺一致性，不引入新配色。
+- 加料維護維持原本整頁跳轉互動（未改為 Modal），僅做視覺換皮，範圍與風險可控。
+
+**驗證結果**
+
+- `dotnet build` 成功，`get_errors` 無錯誤；未變動 Controller/Model 邏輯，純 View/CSS 異動。
+
+---
+
+### [2026-09-23] 實作點餐客製化（加料／辣度），依 docs/prd/v4.md 落地
+
+**變更內容**
+
+- **Model**：新增 `AddOn`（全店共用加料清單）、`OrderItemAddOn`（加料快照：`AddOnName`/`UnitPrice`/`Quantity`）、`SpiceLevel` enum（不辣/微辣/小辣/中辣/大辣）；`MenuItem` 新增 `SupportsAddOns`/`SupportsSpiceLevel`；`OrderItem` 新增 `SpiceLevel?` 與 `AddOns` 集合。
+- **Data**：`AppDbContext` 註冊新 `DbSet` 與關聯設定；新增 Migration `AddOrderCustomization` 並已套用至本機開發資料庫。
+- **Command**：`MenuItemCommands` 新增兩個客製化旗標；新增 `AddOnCommands`（Create/Update）；`OrderCommands.AddOrderItemCommand` 新增 `SpiceLevel`/`AddOns`（`List<AddOnSelectionCommand>`）。
+- **Controller**：`MenuController` 新增加料 CRUD（`CreateAddOn`/`EditAddOn`/`ToggleAddOnActive`），`Index` 改回傳 `MenuIndexViewModel`（品項+加料）；`OrderController.AddItem` 依品項旗標分流客製化邏輯，客製化品項後端強制 `Quantity=1`（不信任前端），驗證所選加料是否仍上架，寫入快照；新增 `ComputeTotal` 統一總額計算（含加料金額），並同步修正 `RemoveItem`/`CancelPendingItems` 的加總邏輯與 Include 查詢（皆需 `.ThenInclude(i => i.AddOns)`）。
+- **Service**：`LanReceiptPrinterService.AppendItemLine` 出單內容補印辣度與加料明細。
+- **View**：`Views/Order/Details.cshtml` 加點面板依品項旗標分流開啟簡易 Offcanvas 或客製化 Offcanvas（辣度按鈕列、加料勾選＋展開式數量調整、捲動區塊、即時小計）；`Views/Menu/Index.cshtml` 改為頁籤（品項／加料）；`Views/Menu/Create.cshtml`/`Edit.cshtml` 新增兩個客製化 checkbox；新增 `Views/Menu/CreateAddOn.cshtml`/`EditAddOn.cshtml`。
+
+**決策原因**
+
+- 詳見 [docs/prd/v4.md](../docs/prd/v4.md)：加料採全店共用清單（非品項專屬）、辣度固定五級預設微辣、客製化品項數量鎖定 1 以避免計價/出單歧義。
+- View 層先求功能正確、堪用即可，樣式細節（焦糖橘 Design System 套用）留給後續 UI/UX 優化階段。
+
+**驗證結果**
+
+- `dotnet build` 成功（0 錯誤）。
+- `dotnet ef migrations add AddOrderCustomization` + `dotnet ef database update` 成功套用至本機開發資料庫（新增 `AddOns`/`OrderItemAddOns` 表，`MenuItems`/`OrderItems` 新增欄位皆有安全預設值，不影響既有資料）。
+- 尚未進行瀏覽器手動點餐流程實測，建議下次操作時實際测试客製化加點、金額計算、出單內容三項。
+
+---
+
+### [2026-09-23] 新增 PRD：點餐客製化（加料／辣度）規格定案
+
+**變更內容**
+
+- 新增 [docs/prd/v4.md](../docs/prd/v4.md)，定義 `MenuItem` 客製化旗標（`SupportsAddOns`/`SupportsSpiceLevel`）、全店共用 `AddOn` 清單、`SpiceLevel` 五級 enum（不辣/微辣/小辣/中辣/大辣，預設微辣）、`OrderItemAddOn` 快照計價規則，以及客製化品項「數量恆為 1」的互動規則。
+- 本次僅完成規格定稿與文件落地，**尚未進行程式碼實作**（Model/Migration/Controller/View 待後續開發階段執行）。
+
+**決策原因**
+
+- 加料清單採「全店共用」而非「品項專屬」（Option B），降低維護與開發成本，經使用者確認接受此限制。
+- 客製化品項強制數量為 1、多份需分行加點，避免「加料/辣度是否套用到每一份」的計價與出單歧義。
+- 加料維護頁面附屬於現有「菜單管理」頁籤，不另開獨立模組入口，符合單店長操作情境的精簡原則。
+
+**驗證結果**
+
+- 純文件變更，未觸碰程式碼；下一階段實作時需搭配 `dotnet build`/`dotnet ef migrations add` 驗證。
+
+---
+
 ### [2026-09-23] UI/UX 美化：焦糖橘 Design System、點餐頁 Offcanvas、清單頁統一化
 
 **變更內容**

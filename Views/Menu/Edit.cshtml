@@ -35,6 +35,18 @@
                         </div>
                         <span asp-validation-for="Price" class="text-danger"></span>
                     </div>
+                    <div class="customization-card mb-3">
+                        <div class="fw-bold mb-2">客製化設定</div>
+                        <div class="form-check form-switch mb-2">
+                            <input asp-for="SupportsAddOns" class="form-check-input" role="switch" />
+                            <label asp-for="SupportsAddOns" class="form-check-label">開放加料</label>
+                        </div>
+                        <div class="form-check form-switch mb-2">
+                            <input asp-for="SupportsSpiceLevel" class="form-check-input" role="switch" />
+                            <label asp-for="SupportsSpiceLevel" class="form-check-label">開放調整辣度</label>
+                        </div>
+                        <div class="small text-muted">ℹ️ 開啟後，點餐時將顯示對應的客製化表單</div>
+                    </div>
                     <button type="submit" class="btn btn-primary">儲存</button>
                     <a asp-action="Index" class="btn btn-outline-secondary">取消</a>
                 </form>

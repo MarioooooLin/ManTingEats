@@ -6,4 +6,5 @@ public sealed class OrderDetailsViewModel
 {
     public required Order Order { get; init; }
     public required List<MenuItem> ActiveMenuItems { get; init; }
+    public required List<AddOn> ActiveAddOns { get; init; }
 }

@@ -59,6 +59,14 @@
                 <tr>
                     <td>
                         @item.MenuItem?.Name
+                        @if (item.SpiceLevel is not null)
+                        {
+                            <div class="text-muted small">辣度：@item.SpiceLevel.Value.ToDisplayText()</div>
+                        }
+                        @if (item.AddOns.Count > 0)
+                        {
+                            <div class="text-muted small">加料：@string.Join("、", item.AddOns.Select(a => $"{a.AddOnName} x{a.Quantity}"))</div>
+                        }
                         @if (!string.IsNullOrWhiteSpace(item.Note))
                         {
                             <div class="text-muted small">備註：@item.Note</div>
@@ -66,7 +74,7 @@
                     </td>
                     <td class="text-end">$@item.UnitPrice.ToString("F2")</td>
                     <td class="text-end">@item.Quantity</td>
-                    <td class="text-end">$@((item.UnitPrice * item.Quantity).ToString("F2"))</td>
+                    <td class="text-end">$@((item.UnitPrice * item.Quantity + item.AddOns.Sum(a => a.UnitPrice * a.Quantity)).ToString("F2"))</td>
                     <td>
                         @if (item.IsPrinted)
                         {
@@ -130,9 +138,15 @@
                                 {
                                     <div class="col">
                                         <button type="button" class="btn btn-outline-primary w-100 h-100 py-3 menu-item-card"
-                                                data-id="@menuItem.Id" data-name="@menuItem.Name" data-price="@menuItem.Price.ToString("F2")">
+                                                data-id="@menuItem.Id" data-name="@menuItem.Name" data-price="@menuItem.Price.ToString("F2")"
+                                                data-supports-addons="@menuItem.SupportsAddOns.ToString().ToLowerInvariant()"
+                                                data-supports-spice="@menuItem.SupportsSpiceLevel.ToString().ToLowerInvariant()">
                                             <div class="fw-bold">@menuItem.Name</div>
                                             <div class="small text-muted">$@menuItem.Price.ToString("F2")</div>
+                                            @if (menuItem.SupportsAddOns || menuItem.SupportsSpiceLevel)
+                                            {
+                                                <div class="small text-primary">可客製化</div>
+                                            }
                                         </button>
                                     </div>
                                 }
@@ -164,6 +178,72 @@
                                 <input type="text" name="Note" maxlength="100" class="form-control" />
                             </div>
                             <button type="submit" class="btn btn-primary btn-lg w-100">@(isFirstOrder ? "點餐" : "加點")</button>
+                        </form>
+                    </div>
+                </div>
+
+                <div class="offcanvas offcanvas-bottom" tabindex="-1" id="customizeItemPanel" style="height: auto; max-height: 85vh;">
+                    <div class="offcanvas-header">
+                        <h5 class="offcanvas-title" id="customizeItemName"></h5>
+                        <button type="button" class="btn-close" data-bs-dismiss="offcanvas"></button>
+                    </div>
+                    <div class="offcanvas-body d-flex flex-column">
+                        <form asp-action="AddItem" method="post" id="customizeForm" class="d-flex flex-column flex-grow-1">
+                            <input type="hidden" name="orderId" value="@order.Id" />
+                            <input type="hidden" name="MenuItemId" id="customizeMenuItemId" />
+                            <input type="hidden" name="Quantity" value="1" />
+
+                            <div class="flex-grow-1" style="overflow-y: auto;">
+                                <div class="mb-3" id="spiceSection">
+                                    <label class="form-label">辣度</label>
+                                    <div class="btn-group w-100 spice-btn-group" role="group">
+                                        @foreach (var level in Enum.GetValues<SpiceLevel>())
+                                        {
+                                            var inputId = $"spice-{level}";
+                                            <input type="radio" class="btn-check" name="SpiceLevel" id="@inputId" value="@level" autocomplete="off" @(level == SpiceLevel.Mild ? "checked" : "") />
+                                            <label class="btn btn-outline-secondary spice-btn" for="@inputId">@level.ToDisplayText()</label>
+                                        }
+                                    </div>
+                                </div>
+
+                                <div class="mb-3" id="addOnsSection">
+                                    <label class="form-label">加料</label>
+                                    <div style="max-height: 240px; overflow-y: auto;">
+                                        @foreach (var addOn in Model.ActiveAddOns)
+                                        {
+                                            <div class="d-flex align-items-center justify-content-between addon-row">
+                                                <div class="form-check mb-0">
+                                                    <input type="checkbox" class="form-check-input addon-checkbox" id="addon-@addOn.Id"
+                                                           data-addon-id="@addOn.Id" data-addon-name="@addOn.Name" data-addon-price="@addOn.Price.ToString("F2")" />
+                                                    <label class="form-check-label stretched-label" for="addon-@addOn.Id">@addOn.Name <span class="text-muted">+$@addOn.Price.ToString("F2")</span></label>
+                                                </div>
+                                                <div class="qty-stepper addon-qty-stepper" style="display: none;">
+                                                    <button type="button" class="btn btn-sm btn-outline-secondary qty-btn" data-step="-1">−</button>
+                                                    <input type="number" class="form-control form-control-sm addon-qty-input" value="1" min="1" step="1" style="width: 3.5rem;" />
+                                                    <button type="button" class="btn btn-sm btn-outline-secondary qty-btn" data-step="1">+</button>
+                                                </div>
+                                            </div>
+                                        }
+                                        @if (Model.ActiveAddOns.Count == 0)
+                                        {
+                                            <p class="text-muted small mb-0">尚無可選加料。</p>
+                                        }
+                                    </div>
+                                </div>
+
+                                <div class="mb-3">
+                                    <label class="form-label">備註（選填）</label>
+                                    <input type="text" name="Note" maxlength="100" class="form-control" />
+                                </div>
+                            </div>
+
+                            <div class="offcanvas-sticky-footer">
+                                <div>
+                                    <div class="text-muted small">小計</div>
+                                    <div class="fs-4 fw-bold text-brand">$<span id="customizeSubtotal">0</span></div>
+                                </div>
+                                <button type="submit" class="btn btn-primary btn-lg flex-grow-1">加點</button>
+                            </div>
                         </form>
                     </div>
                 </div>
@@ -232,18 +312,91 @@
     <script>
         document.querySelectorAll('.menu-item-card').forEach(function (btn) {
             btn.addEventListener('click', function () {
-                document.getElementById('modalMenuItemId').value = this.dataset.id;
-                document.getElementById('modalItemName').textContent = this.dataset.name + '（$' + this.dataset.price + '）';
-                document.getElementById('modalQuantity').value = 1;
-                new bootstrap.Offcanvas(document.getElementById('addItemPanel')).show();
+                var isCustomized = this.dataset.supportsAddons === 'true' || this.dataset.supportsSpice === 'true';
+                if (isCustomized) {
+                    document.getElementById('customizeMenuItemId').value = this.dataset.id;
+                    document.getElementById('customizeItemName').textContent = this.dataset.name + '（$' + this.dataset.price + '）';
+                    document.getElementById('spiceSection').style.display = this.dataset.supportsSpice === 'true' ? '' : 'none';
+                    document.getElementById('addOnsSection').style.display = this.dataset.supportsAddons === 'true' ? '' : 'none';
+
+                    var form = document.getElementById('customizeForm');
+                    form.querySelectorAll('.addon-checkbox').forEach(function (cb) {
+                        cb.checked = false;
+                        cb.closest('.addon-row').classList.remove('addon-row-selected');
+                        cb.closest('.addon-row').querySelector('.addon-qty-stepper').style.display = 'none';
+                        cb.closest('.addon-row').querySelector('.addon-qty-input').value = 1;
+                    });
+                    var firstSpice = form.querySelector('input[name="SpiceLevel"][value="Mild"]');
+                    if (firstSpice) { firstSpice.checked = true; }
+
+                    updateCustomizeSubtotal(parseFloat(this.dataset.price));
+                    new bootstrap.Offcanvas(document.getElementById('customizeItemPanel')).show();
+                } else {
+                    document.getElementById('modalMenuItemId').value = this.dataset.id;
+                    document.getElementById('modalItemName').textContent = this.dataset.name + '（$' + this.dataset.price + '）';
+                    document.getElementById('modalQuantity').value = 1;
+                    new bootstrap.Offcanvas(document.getElementById('addItemPanel')).show();
+                }
             });
         });
 
         document.querySelectorAll('.qty-btn').forEach(function (btn) {
             btn.addEventListener('click', function () {
-                var input = document.getElementById('modalQuantity');
+                var input = this.parentElement.querySelector('input[type="number"]');
                 var next = parseInt(input.value || '1', 10) + parseInt(this.dataset.step, 10);
                 input.value = Math.max(1, next);
+                if (input.classList.contains('addon-qty-input')) {
+                    updateCustomizeSubtotalFromForm();
+                }
+            });
+        });
+
+        document.querySelectorAll('.addon-checkbox').forEach(function (cb) {
+            cb.addEventListener('change', function () {
+                this.closest('.addon-row').classList.toggle('addon-row-selected', this.checked);
+                this.closest('.addon-row').querySelector('.addon-qty-stepper').style.display = this.checked ? '' : 'none';
+                updateCustomizeSubtotalFromForm();
+            });
+        });
+
+        document.querySelectorAll('.addon-qty-input').forEach(function (input) {
+            input.addEventListener('input', updateCustomizeSubtotalFromForm);
+        });
+
+        function updateCustomizeSubtotalFromForm() {
+            var priceText = document.getElementById('customizeItemName').textContent;
+            var match = priceText.match(/\$(\d+(\.\d+)?)/);
+            var basePrice = match ? parseFloat(match[1]) : 0;
+            updateCustomizeSubtotal(basePrice);
+        }
+
+        function updateCustomizeSubtotal(basePrice) {
+            var total = basePrice || 0;
+            document.querySelectorAll('.addon-checkbox:checked').forEach(function (cb) {
+                var price = parseFloat(cb.dataset.addonPrice) || 0;
+                var qtyInput = cb.closest('.addon-row').querySelector('.addon-qty-input');
+                var qty = parseInt(qtyInput.value || '1', 10);
+                total += price * qty;
+            });
+            document.getElementById('customizeSubtotal').textContent = total.toFixed(0);
+        }
+
+        document.getElementById('customizeForm').addEventListener('submit', function (event) {
+            var form = event.target;
+            form.querySelectorAll('input[data-generated-addon]').forEach(function (el) { el.remove(); });
+
+            var index = 0;
+            form.querySelectorAll('.addon-checkbox:checked').forEach(function (cb) {
+                var qty = cb.closest('.addon-row').querySelector('.addon-qty-input').value || 1;
+                [['AddOnId', cb.dataset.addonId], ['Quantity', qty]].forEach(function (pair) {
+                    var hidden = document.createElement('input');
+                    hidden.type = 'hidden';
+                    hidden.name = 'AddOns[' + index + '].' + pair[0];
+                    hidden.value = pair[1];
+                    hidden.setAttribute('data-generated-addon', 'true');
+                    form.appendChild(hidden);
+                });
+                index++;
             });
         });
 
@@ -262,3 +415,4 @@
         });
     </script>
 }
+

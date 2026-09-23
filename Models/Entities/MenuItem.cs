@@ -9,6 +9,8 @@ public sealed class MenuItem
     public MenuCategory Category { get; set; }
     public decimal Price { get; set; }
     public bool IsActive { get; set; } = true;
+    public bool SupportsAddOns { get; set; }
+    public bool SupportsSpiceLevel { get; set; }
 
     public ICollection<OrderItem> OrderItems { get; set; } = new List<OrderItem>();
 }

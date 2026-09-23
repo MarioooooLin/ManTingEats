@@ -112,7 +112,16 @@ public sealed class LanReceiptPrinterService : IReceiptPrinterService
 
     private static void AppendItemLine(StringBuilder sb, OrderItem item)
     {
-        sb.AppendLine($"{item.MenuItem?.Name} x{item.Quantity}  單價${item.UnitPrice:F0}  小計${item.UnitPrice * item.Quantity:F0}");
+        var subtotal = item.UnitPrice * item.Quantity + item.AddOns.Sum(a => a.UnitPrice * a.Quantity);
+        sb.AppendLine($"{item.MenuItem?.Name} x{item.Quantity}  單價${item.UnitPrice:F0}  小計${subtotal:F0}");
+        if (item.SpiceLevel is not null)
+        {
+            sb.AppendLine($"  辣度：{item.SpiceLevel.Value.ToDisplayText()}");
+        }
+        foreach (var addOn in item.AddOns)
+        {
+            sb.AppendLine($"  加料：{addOn.AddOnName} x{addOn.Quantity} (+${addOn.UnitPrice * addOn.Quantity:F0})");
+        }
         if (!string.IsNullOrWhiteSpace(item.Note))
         {
             sb.AppendLine($"  備註：{item.Note}");

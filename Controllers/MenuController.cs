@@ -1,4 +1,5 @@
 using ManTingEats.Data;
+using ManTingEats.Models;
 using ManTingEats.Models.Commands;
 using ManTingEats.Models.Entities;
 using ManTingEats.Models.Enums;
@@ -24,7 +25,10 @@ public sealed class MenuController : Controller
             .OrderBy(m => m.Category)
             .ThenBy(m => m.Name)
             .ToListAsync();
-        return View(items);
+        var addOns = await _db.AddOns
+            .OrderBy(a => a.Name)
+            .ToListAsync();
+        return View(new MenuIndexViewModel { Items = items, AddOns = addOns });
     }
 
     [HttpGet]
@@ -47,7 +51,9 @@ public sealed class MenuController : Controller
             Name = command.Name,
             Category = command.Category,
             Price = command.Price,
-            IsActive = true
+            IsActive = true,
+            SupportsAddOns = command.SupportsAddOns,
+            SupportsSpiceLevel = command.SupportsSpiceLevel
         });
         await _db.SaveChangesAsync();
         TempData["Success"] = "已新增品項。";
@@ -63,7 +69,7 @@ public sealed class MenuController : Controller
             return NotFound();
         }
 
-        return View(new UpdateMenuItemCommand(item.Id, item.Name, item.Category, item.Price));
+        return View(new UpdateMenuItemCommand(item.Id, item.Name, item.Category, item.Price, item.SupportsAddOns, item.SupportsSpiceLevel));
     }
 
     [HttpPost]
@@ -84,6 +90,8 @@ public sealed class MenuController : Controller
         item.Name = command.Name;
         item.Category = command.Category;
         item.Price = command.Price;
+        item.SupportsAddOns = command.SupportsAddOns;
+        item.SupportsSpiceLevel = command.SupportsSpiceLevel;
         await _db.SaveChangesAsync();
         TempData["Success"] = "已更新品項。";
         return RedirectToAction(nameof(Index));
@@ -102,6 +110,77 @@ public sealed class MenuController : Controller
         item.IsActive = !item.IsActive;
         await _db.SaveChangesAsync();
         TempData["Success"] = item.IsActive ? "已上架。" : "已下架。";
+        return RedirectToAction(nameof(Index));
+    }
+
+    [HttpGet]
+    public IActionResult CreateAddOn()
+    {
+        return View(new CreateAddOnCommand(string.Empty, 0));
+    }
+
+    [HttpPost]
+    [ValidateAntiForgeryToken]
+    public async Task<IActionResult> CreateAddOn(CreateAddOnCommand command)
+    {
+        if (!ModelState.IsValid)
+        {
+            return View(command);
+        }
+
+        _db.AddOns.Add(new AddOn { Name = command.Name, Price = command.Price, IsActive = true });
+        await _db.SaveChangesAsync();
+        TempData["Success"] = "已新增加料。";
+        return RedirectToAction(nameof(Index));
+    }
+
+    [HttpGet]
+    public async Task<IActionResult> EditAddOn(int id)
+    {
+        var addOn = await _db.AddOns.FindAsync(id);
+        if (addOn is null)
+        {
+            return NotFound();
+        }
+
+        return View(new UpdateAddOnCommand(addOn.Id, addOn.Name, addOn.Price));
+    }
+
+    [HttpPost]
+    [ValidateAntiForgeryToken]
+    public async Task<IActionResult> EditAddOn(UpdateAddOnCommand command)
+    {
+        if (!ModelState.IsValid)
+        {
+            return View(command);
+        }
+
+        var addOn = await _db.AddOns.FindAsync(command.Id);
+        if (addOn is null)
+        {
+            return NotFound();
+        }
+
+        addOn.Name = command.Name;
+        addOn.Price = command.Price;
+        await _db.SaveChangesAsync();
+        TempData["Success"] = "已更新加料。";
+        return RedirectToAction(nameof(Index));
+    }
+
+    [HttpPost]
+    [ValidateAntiForgeryToken]
+    public async Task<IActionResult> ToggleAddOnActive(int id)
+    {
+        var addOn = await _db.AddOns.FindAsync(id);
+        if (addOn is null)
+        {
+            return NotFound();
+        }
+
+        addOn.IsActive = !addOn.IsActive;
+        await _db.SaveChangesAsync();
+        TempData["Success"] = addOn.IsActive ? "已上架。" : "已下架。";
         return RedirectToAction(nameof(Index));
     }
 }
