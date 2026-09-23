@@ -25,7 +25,7 @@
                 <button type="submit" class="btn btn-primary">查詢</button>
             </div>
         </form>
-        <div class="btn-group">
+        <div class="btn-group flex-wrap gap-2" role="group">
             <a class="btn btn-outline-secondary" asp-action="Index" asp-route-start="@today.ToString("yyyy-MM-dd")" asp-route-end="@today.ToString("yyyy-MM-dd")">今日</a>
             <a class="btn btn-outline-secondary" asp-action="Index" asp-route-start="@weekStart.ToString("yyyy-MM-dd")" asp-route-end="@today.ToString("yyyy-MM-dd")">本週</a>
             <a class="btn btn-outline-secondary" asp-action="Index" asp-route-start="@monthStart.ToString("yyyy-MM-dd")" asp-route-end="@today.ToString("yyyy-MM-dd")">本月</a>
@@ -73,6 +73,7 @@
                 }
                 else
                 {
+                    <div class="table-responsive">
                     <table class="table table-sm mb-0">
                         <thead>
                             <tr>
@@ -90,6 +91,7 @@
                             }
                         </tbody>
                     </table>
+                    </div>
                 }
             </div>
         </div>
@@ -98,6 +100,7 @@
 
 <div class="card">
     <div class="card-header">品項銷售排行（依金額排序）</div>
+    <div class="table-responsive">
     <table class="table table-hover mb-0">
         <thead>
             <tr>
@@ -121,4 +124,5 @@
             }
         </tbody>
     </table>
+    </div>
 </div>
