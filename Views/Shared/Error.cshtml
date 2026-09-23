@@ -1,25 +1,24 @@
 ﻿@model ErrorViewModel
 @{
-    ViewData["Title"] = "Error";
+    ViewData["Title"] = "錯誤";
 }
 
-<h1 class="text-danger">Error.</h1>
-<h2 class="text-danger">An error occurred while processing your request.</h2>
+<h1 class="text-danger">發生錯誤</h1>
+<h2 class="text-danger">處理您的請求時發生錯誤。</h2>
 
 @if (Model.ShowRequestId)
 {
     <p>
-        <strong>Request ID:</strong> <code>@Model.RequestId</code>
+        <strong>要求識別碼：</strong> <code>@Model.RequestId</code>
     </p>
 }
 
-<h3>Development Mode</h3>
+<h3>開發模式</h3>
 <p>
-    Swapping to <strong>Development</strong> environment will display more detailed information about the error that occurred.
+    切換至<strong>開發（Development）</strong>環境將顯示更詳細的錯誤資訊。
 </p>
 <p>
-    <strong>The Development environment shouldn't be enabled for deployed applications.</strong>
-    It can result in displaying sensitive information from exceptions to end users.
-    For local debugging, enable the <strong>Development</strong> environment by setting the <strong>ASPNETCORE_ENVIRONMENT</strong> environment variable to <strong>Development</strong>
-    and restarting the app.
+    <strong>正式上線環境不應啟用開發環境。</strong>
+    這可能導致將例外狀況中的敏感資訊顯示給使用者。
+    如需在本機除錯，請將環境變數 <strong>ASPNETCORE_ENVIRONMENT</strong> 設定為 <strong>Development</strong> 後重新啟動應用程式。
 </p>

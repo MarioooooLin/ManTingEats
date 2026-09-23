@@ -15,7 +15,22 @@ Encoding.RegisterProvider(CodePagesEncodingProvider.Instance);
 var builder = WebApplication.CreateBuilder(args);
 
 // Add services to the container.
-builder.Services.AddControllersWithViews();
+builder.Services.AddControllersWithViews()
+    .AddMvcOptions(options =>
+    {
+        // ASP.NET Core 內建的 Model Binding 失敗訊息（如輸入非數字、日期格式錯誤）預設為英文，這裡覆寫為中文
+        var provider = options.ModelBindingMessageProvider;
+        provider.SetValueMustNotBeNullAccessor(fieldName => $"{fieldName} 為必填欄位。");
+        provider.SetValueIsInvalidAccessor(value => $"「{value}」為無效的值。");
+        provider.SetValueMustBeANumberAccessor(fieldName => $"{fieldName} 必須為數字。");
+        provider.SetAttemptedValueIsInvalidAccessor((value, fieldName) => $"「{value}」不是有效的 {fieldName} 值。");
+        provider.SetMissingKeyOrValueAccessor(() => "此欄位為必填。");
+        provider.SetMissingRequestBodyRequiredValueAccessor(() => "必須提供要求內容。");
+        provider.SetNonPropertyAttemptedValueIsInvalidAccessor(value => $"「{value}」不是有效的值。");
+        provider.SetNonPropertyUnknownValueIsInvalidAccessor(() => "提供的值無效。");
+        provider.SetNonPropertyValueMustBeANumberAccessor(() => "欄位必須為數字。");
+        provider.SetUnknownValueIsInvalidAccessor(fieldName => $"{fieldName} 提供的值無效。");
+    });
 
 // 容器化部署時 Key 需持久化於掛載的 volume，否則容器重啟會導致所有登入 session 失效
 builder.Services.AddDataProtection()
