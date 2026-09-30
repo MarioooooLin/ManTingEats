@@ -3,6 +3,7 @@ using ManTingEats.Models;
 using ManTingEats.Models.Commands;
 using ManTingEats.Models.Entities;
 using ManTingEats.Models.Enums;
+using ManTingEats.Services;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
@@ -61,6 +62,7 @@ public sealed class ExpenseController : Controller
     [ValidateAntiForgeryToken]
     public async Task<IActionResult> Create(CreateExpenseCommand command)
     {
+        ValidateExpenseDate(command.Date, nameof(command.Date));
         if (!ModelState.IsValid)
         {
             return View(command);
@@ -94,6 +96,7 @@ public sealed class ExpenseController : Controller
     [ValidateAntiForgeryToken]
     public async Task<IActionResult> Edit(UpdateExpenseCommand command)
     {
+        ValidateExpenseDate(command.Date, nameof(command.Date));
         if (!ModelState.IsValid)
         {
             return View(command);
@@ -112,6 +115,15 @@ public sealed class ExpenseController : Controller
         await _db.SaveChangesAsync();
         TempData["Success"] = "已更新支出記錄。";
         return RedirectToAction(nameof(Index));
+    }
+
+    /// <summary>支出僅登記已發生的費用，日期不可晚於今天（台灣時區）；補登過去日期不受限。</summary>
+    private void ValidateExpenseDate(DateTime date, string fieldName)
+    {
+        if (date.Date > TaipeiTime.Today)
+        {
+            ModelState.AddModelError(fieldName, "支出日期不可晚於今天");
+        }
     }
 
     [HttpPost]

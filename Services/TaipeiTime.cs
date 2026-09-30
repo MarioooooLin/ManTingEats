@@ -5,8 +5,11 @@ public static class TaipeiTime
 {
     private static readonly TimeZoneInfo TimeZone = TimeZoneInfo.FindSystemTimeZoneById("Asia/Taipei");
 
+    /// <summary>台灣時區的現在時間。</summary>
+    public static DateTime Now => DateTime.SpecifyKind(TimeZoneInfo.ConvertTimeFromUtc(DateTime.UtcNow, TimeZone), DateTimeKind.Unspecified);
+
     /// <summary>台灣時區的今天日期。</summary>
-    public static DateTime Today => TimeZoneInfo.ConvertTimeFromUtc(DateTime.UtcNow, TimeZone).Date;
+    public static DateTime Today => Now.Date;
 
     /// <summary>將台灣時區的日期（當天 00:00）換算成對應的 UTC 時間點。</summary>
     public static DateTime StartOfDayUtc(DateTime taipeiDate) =>

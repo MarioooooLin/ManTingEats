@@ -41,6 +41,8 @@ public sealed class MenuController : Controller
     [ValidateAntiForgeryToken]
     public async Task<IActionResult> Create(CreateMenuItemCommand command)
     {
+        command = command with { Name = command.Name?.Trim() ?? string.Empty };
+        await ValidateUniqueNameAsync(command.Name, excludeId: null);
         if (!ModelState.IsValid)
         {
             return View(command);
@@ -76,6 +78,8 @@ public sealed class MenuController : Controller
     [ValidateAntiForgeryToken]
     public async Task<IActionResult> Edit(UpdateMenuItemCommand command)
     {
+        command = command with { Name = command.Name?.Trim() ?? string.Empty };
+        await ValidateUniqueNameAsync(command.Name, excludeId: command.Id);
         if (!ModelState.IsValid)
         {
             return View(command);
@@ -95,6 +99,21 @@ public sealed class MenuController : Controller
         await _db.SaveChangesAsync();
         TempData["Success"] = "已更新品項。";
         return RedirectToAction(nameof(Index));
+    }
+
+    /// <summary>營收報表的品項排行以名稱分組，同名品項會被合併計算，故名稱不可重複（含已下架品項）。</summary>
+    private async Task ValidateUniqueNameAsync(string name, int? excludeId)
+    {
+        if (string.IsNullOrEmpty(name))
+        {
+            return;
+        }
+
+        var isDuplicate = await _db.MenuItems.AnyAsync(m => m.Name == name && (excludeId == null || m.Id != excludeId));
+        if (isDuplicate)
+        {
+            ModelState.AddModelError(nameof(CreateMenuItemCommand.Name), "已有相同名稱的品項（含已下架），請改用其他名稱");
+        }
     }
 
     [HttpPost]

@@ -2,6 +2,7 @@ using ManTingEats.Data;
 using ManTingEats.Models;
 using ManTingEats.Models.Commands;
 using ManTingEats.Models.Entities;
+using ManTingEats.Services;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
@@ -54,6 +55,17 @@ public sealed class ReservationController : Controller
     [ValidateAntiForgeryToken]
     public async Task<IActionResult> Create(CreateReservationCommand command)
     {
+        // ReservedAt 為使用者輸入的台灣當地時間（非 UTC），故以台灣時間比對
+        var now = TaipeiTime.Now;
+        if (command.ReservedAt < now)
+        {
+            ModelState.AddModelError(nameof(command.ReservedAt), "訂位時間不可早於現在");
+        }
+        else if (command.ReservedAt > now.AddYears(1))
+        {
+            ModelState.AddModelError(nameof(command.ReservedAt), "訂位時間不可超過一年後");
+        }
+
         if (!ModelState.IsValid)
         {
             return View(command);

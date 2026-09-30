@@ -8,5 +8,5 @@ public sealed record CreateReservationCommand(
     [Phone(ErrorMessage = "電話格式不正確")]
     [StringLength(20, ErrorMessage = "電話不得超過 20 字")]
     string PhoneNumber,
-    [Range(1, int.MaxValue, ErrorMessage = "人數需為正整數")] int PartySize,
+    [Range(1, 50, ErrorMessage = "人數需介於 1 到 50")] int PartySize,
     [Required(ErrorMessage = "請選擇日期時段")] DateTime ReservedAt);

@@ -43,6 +43,9 @@ public sealed class OrderController : Controller
     [ValidateAntiForgeryToken]
     public async Task<IActionResult> Create(CreateOrderCommand command, bool confirmDuplicateTable = false)
     {
+        // 去除前後空白，避免「A1」與「A1 」被視為不同桌而漏掉同桌未結帳提醒
+        command = command with { TableNumber = command.TableNumber?.Trim() };
+
         if (command.Channel == OrderChannel.DineIn && string.IsNullOrWhiteSpace(command.TableNumber))
         {
             ModelState.AddModelError(nameof(command.TableNumber), "內用訂單請填寫桌號");
