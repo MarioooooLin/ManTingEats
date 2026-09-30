@@ -1,7 +1,7 @@
 @model ManTingEats.Models.ReportViewModel
 @{
     ViewData["Title"] = "營收報表";
-    var today = DateTime.Today;
+    var today = ManTingEats.Services.TaipeiTime.Today;
     var weekStart = today.AddDays(-(int)today.DayOfWeek + (today.DayOfWeek == DayOfWeek.Sunday ? -6 : 1));
     var monthStart = new DateTime(today.Year, today.Month, 1);
 }

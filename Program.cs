@@ -63,10 +63,12 @@ builder.Services.AddAuthorization();
 
 var app = builder.Build();
 
-// 首次啟動時若無任何員工帳號，種一組管理者帳號（帳密來自設定檔，不寫死於程式碼）
+// 套用 Migration 後，首次啟動時若無任何員工帳號，種一組管理者帳號（帳密來自設定檔，不寫死於程式碼）
 using (var scope = app.Services.CreateScope())
 {
     var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+    // 啟動時自動套用尚未執行的 Migration，正式環境 runtime image 不含 dotnet-ef 工具，無法手動執行 database update
+    await db.Database.MigrateAsync();
     var hasher = scope.ServiceProvider.GetRequiredService<IPasswordHasher<Employee>>();
     await DbSeeder.SeedManagerAsync(db, hasher, app.Configuration);
 }

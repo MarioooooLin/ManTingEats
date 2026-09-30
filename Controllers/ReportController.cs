@@ -1,6 +1,7 @@
 using ManTingEats.Data;
 using ManTingEats.Models;
 using ManTingEats.Models.Enums;
+using ManTingEats.Services;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
@@ -19,8 +20,8 @@ public sealed class ReportController : Controller
 
     public async Task<IActionResult> Index(DateTime? start, DateTime? end)
     {
-        var startDate = (start ?? DateTime.Today).Date;
-        var endDate = (end ?? DateTime.Today).Date;
+        var startDate = (start ?? TaipeiTime.Today).Date;
+        var endDate = (end ?? TaipeiTime.Today).Date;
         if (endDate < startDate)
         {
             (startDate, endDate) = (endDate, startDate);
@@ -28,9 +29,13 @@ public sealed class ReportController : Controller
 
         var endExclusive = endDate.AddDays(1);
 
+        // CompletedAt 存 UTC，需將台灣營業日邊界換算為 UTC 再比對，否則 00:00–08:00 結帳的訂單會被算到前一天
+        var startUtc = TaipeiTime.StartOfDayUtc(startDate);
+        var endExclusiveUtc = TaipeiTime.StartOfDayUtc(endExclusive);
+
         // 報表僅計入已結帳訂單，不含已作廢訂單
         var completedOrders = await _db.Orders
-            .Where(o => o.Status == OrderStatus.Completed && o.CompletedAt >= startDate && o.CompletedAt < endExclusive)
+            .Where(o => o.Status == OrderStatus.Completed && o.CompletedAt >= startUtc && o.CompletedAt < endExclusiveUtc)
             .Include(o => o.Items)
                 .ThenInclude(i => i.MenuItem)
             .ToListAsync();

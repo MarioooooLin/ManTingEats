@@ -304,9 +304,12 @@
 
 <a asp-action="Index" class="btn btn-outline-secondary mt-4">回訂單列表</a>
 
-<form asp-action="Reprint" asp-route-id="@order.Id" method="post" class="d-inline">
-    <button type="submit" class="btn btn-outline-secondary mt-4">補印出單</button>
-</form>
+@if (order.Status != OrderStatus.Voided)
+{
+    <form asp-action="Reprint" asp-route-id="@order.Id" method="post" class="d-inline">
+        <button type="submit" class="btn btn-outline-secondary mt-4">補印出單</button>
+    </form>
+}
 
 @section Scripts {
     <script>

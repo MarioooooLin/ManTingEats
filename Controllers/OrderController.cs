@@ -81,13 +81,10 @@ public sealed class OrderController : Controller
         return RedirectToAction(nameof(Details), new { id = order.Id });
     }
 
-    private static readonly TimeZoneInfo TaipeiTimeZone = TimeZoneInfo.FindSystemTimeZoneById("Asia/Taipei");
-
     /// <summary>以台灣時區（而非容器系統時區）判斷「今天」的邊界，計算當日下一個流水號。</summary>
     private async Task<int> GetNextDailyNumberAsync()
     {
-        var todayTaipei = TimeZoneInfo.ConvertTimeFromUtc(DateTime.UtcNow, TaipeiTimeZone).Date;
-        var todayStartUtc = TimeZoneInfo.ConvertTimeToUtc(todayTaipei, TaipeiTimeZone);
+        var todayStartUtc = TaipeiTime.StartOfDayUtc(TaipeiTime.Today);
         var todayEndUtc = todayStartUtc.AddDays(1);
 
         var maxDailyNumber = await _db.Orders
@@ -217,6 +214,13 @@ public sealed class OrderController : Controller
         if (order is null)
         {
             return NotFound();
+        }
+
+        // 確認出單僅限未結帳訂單；結帳時已由 Checkout 補印，作廢訂單則不應再送廚房
+        if (order.Status != OrderStatus.Open)
+        {
+            TempData["Error"] = "訂單已鎖定，無法出單。";
+            return RedirectToAction(nameof(Details), new { id = orderId });
         }
 
         var printed = await TryPrintPendingItemsAsync(order);
@@ -428,6 +432,13 @@ public sealed class OrderController : Controller
         if (order is null)
         {
             return NotFound();
+        }
+
+        // 已作廢訂單若再印出「全單」，廚房可能誤以為要製作，一律不允許補印
+        if (order.Status == OrderStatus.Voided)
+        {
+            TempData["Error"] = "訂單已作廢，無法補印。";
+            return RedirectToAction(nameof(Details), new { id });
         }
 
         var printed = await _printer.PrintNewOrderAsync(order);
