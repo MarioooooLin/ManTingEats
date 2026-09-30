@@ -139,6 +139,31 @@ body {
   transition: transform .15s ease, box-shadow .15s ease;
 }
 
+/* 說明文字行數不同時，按鈕仍固定貼齊卡片底部，讓同一列按鈕對齊 */
+.dashboard-card .card-body {
+  display: flex;
+  flex-direction: column;
+}
+
+.dashboard-card .card-body > .btn {
+  margin-top: auto;
+  align-self: flex-start;
+}
+
+/* 隱私權政策等長文頁面：章節標題與段落間距 */
+.privacy-content h2 {
+  font-size: 1.15rem;
+  font-weight: 700;
+  margin-top: 1.75rem;
+  margin-bottom: .75rem;
+  color: var(--brand-primary-darker);
+}
+
+.privacy-content p,
+.privacy-content li {
+  line-height: 1.8;
+}
+
 .dashboard-card:hover {
   transform: translateY(-3px);
   box-shadow: var(--surface-shadow-md);

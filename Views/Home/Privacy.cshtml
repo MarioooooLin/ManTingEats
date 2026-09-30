@@ -1,6 +1,104 @@
-﻿@{
+@{
     ViewData["Title"] = "隱私權政策";
-}
-<h1>@ViewData["Title"]</h1>
 
-<p>本頁面用於說明本系統的隱私權政策內容。</p>
+    // TODO 上線前填入：聯絡方式（個資當事人行使權利的窗口）
+    const string StoreName = "香港爆辣冷麵";
+    const string ContactPhone = "【聯絡電話】";
+    const string ContactEmail = "【聯絡信箱】";
+    const string LastUpdated = "2026-09-30";
+}
+
+<div class="page-header">
+    <h1>@ViewData["Title"]</h1>
+    <p class="text-muted mb-0">最後更新日期：@LastUpdated</p>
+</div>
+
+<div class="card mb-4">
+    <div class="card-body privacy-content">
+        <p>
+            ManTingEats（以下稱「本系統」）為 @StoreName（以下稱「本店」）內部使用的餐廳管理系統，
+            供本店人員處理點餐、訂位、菜單、支出與營收報表等作業。本店依《個人資料保護法》規定，
+            說明本系統蒐集、處理及利用個人資料的方式如下。
+        </p>
+
+        <h2>一、蒐集的個人資料類別</h2>
+        <div class="table-responsive">
+        <table class="table table-bordered align-middle">
+            <thead class="table-light">
+                <tr>
+                    <th style="width: 20%">對象</th>
+                    <th>蒐集的資料</th>
+                    <th style="width: 30%">蒐集目的</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr>
+                    <td>訂位顧客</td>
+                    <td>姓名、聯絡電話、訂位人數、訂位日期時間</td>
+                    <td>安排座位、聯繫訂位事宜</td>
+                </tr>
+                <tr>
+                    <td>本店人員</td>
+                    <td>登入帳號、密碼（僅儲存不可還原的雜湊值，不儲存密碼原文）、建立與作廢訂單的操作紀錄</td>
+                    <td>身分驗證、帳務稽核</td>
+                </tr>
+                <tr>
+                    <td>系統使用者</td>
+                    <td>連線 IP 位址</td>
+                    <td>防止密碼暴力破解（僅暫存於記憶體，最長 15 分鐘後自動清除）</td>
+                </tr>
+            </tbody>
+        </table>
+        </div>
+        <p>本系統的點餐與訂單功能<strong>不蒐集</strong>用餐顧客的個人資料。</p>
+
+        <h2>二、利用期間、地區、對象及方式</h2>
+        <ul>
+            <li><strong>期間</strong>：於蒐集目的存續期間內保存，或依相關法令規定之保存期間保存。當事人請求刪除時，依第四點辦理。</li>
+            <li><strong>地區</strong>：本系統伺服器所在地區。</li>
+            <li><strong>對象</strong>：僅限本店經授權之人員，不會提供、出售或出租予任何第三方，但依法令規定或司法機關要求者除外。</li>
+            <li><strong>方式</strong>：以電子方式儲存於本系統資料庫，僅用於前述蒐集目的。</li>
+        </ul>
+
+        <h2>三、Cookie 的使用</h2>
+        <p>本系統僅使用維持運作所必要的 Cookie，<strong>不使用任何廣告、追蹤或流量分析工具</strong>：</p>
+        <ul>
+            <li><strong>登入狀態</strong>：記錄本店人員的登入身分，閒置 8 小時後失效。</li>
+            <li><strong>表單防偽驗證</strong>：防止跨站請求偽造（CSRF）攻擊。</li>
+            <li><strong>操作提示訊息</strong>：於頁面跳轉後顯示「已儲存」等提示，顯示後即清除。</li>
+        </ul>
+        <p>若於瀏覽器停用 Cookie，將無法登入及使用本系統。</p>
+
+        <h2>四、當事人權利</h2>
+        <p>依《個人資料保護法》第 3 條，您就本店保有的個人資料得行使下列權利：</p>
+        <ol>
+            <li>查詢或請求閱覽</li>
+            <li>請求製給複製本</li>
+            <li>請求補充或更正</li>
+            <li>請求停止蒐集、處理或利用</li>
+            <li>請求刪除</li>
+        </ol>
+        <p>
+            如需行使上述權利，請透過第六點的聯絡方式與本店聯繫。本店確認身分後將儘速處理；
+            若提供的資料不完整或有誤，可能影響訂位服務的提供。
+        </p>
+
+        <h2>五、資料安全</h2>
+        <ul>
+            <li>本系統僅限經授權的本店人員登入使用，並具備登入失敗次數限制。</li>
+            <li>密碼以單向雜湊演算法儲存，任何人（包含系統管理者）皆無法得知密碼原文。</li>
+            <li>正式環境透過 HTTPS 加密傳輸資料。</li>
+            <li>資料庫定期備份，備份檔保留 7 天後自動刪除。</li>
+        </ul>
+
+        <h2>六、聯絡方式</h2>
+        <ul>
+            <li>店家：@StoreName</li>
+            <li>電話：@ContactPhone</li>
+            <li>電子郵件：@ContactEmail</li>
+        </ul>
+
+        <h2>七、政策修訂</h2>
+        <p class="mb-0">本店得視法令變更或營運需要修訂本政策，修訂後將公告於本頁面，並更新最後更新日期。</p>
+    </div>
+</div>

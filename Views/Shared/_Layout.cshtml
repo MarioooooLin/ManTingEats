@@ -29,10 +29,10 @@
                         @if (User.Identity?.IsAuthenticated == true)
                         {
                             <li class="nav-item">
-                                <a class="nav-link text-dark @(currentController == "Menu" ? "active" : "")" asp-area="" asp-controller="Menu" asp-action="Index">菜單管理</a>
+                                <a class="nav-link text-dark @(currentController == "Order" ? "active" : "")" asp-area="" asp-controller="Order" asp-action="Index">訂單</a>
                             </li>
                             <li class="nav-item">
-                                <a class="nav-link text-dark @(currentController == "Order" ? "active" : "")" asp-area="" asp-controller="Order" asp-action="Index">訂單</a>
+                                <a class="nav-link text-dark @(currentController == "Menu" ? "active" : "")" asp-area="" asp-controller="Menu" asp-action="Index">菜單管理</a>
                             </li>
                             <li class="nav-item">
                                 <a class="nav-link text-dark @(currentController == "Reservation" ? "active" : "")" asp-area="" asp-controller="Reservation" asp-action="Index">訂位記錄</a>
