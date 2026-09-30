@@ -4,6 +4,28 @@
 
 ---
 
+### [2026-09-30] 啟動時自動套用 Migration、修正營收報表時區偏差與作廢訂單補印問題
+
+**變更內容**
+
+- `Program.cs`：種子帳號建立前呼叫 `db.Database.MigrateAsync()`，啟動時自動套用尚未執行的 Migration。
+- 新增 `Services/TaipeiTime.cs`：集中處理台灣時區「今天」與「台灣日期 → UTC 邊界」換算；`OrderController.GetNextDailyNumberAsync` 改用此 helper。
+- `ReportController`：已結帳訂單查詢改以 UTC 邊界比對 `CompletedAt`（原本以本地日期直接比對 UTC 欄位，台灣時間 00:00–08:00 結帳的訂單會被算到前一天）；支出 `Expense.Date` 為台灣日期，維持原比對方式。`Views/Report/Index.cshtml` 快捷日期按鈕改用 `TaipeiTime.Today`。
+- `OrderController.Reprint`：已作廢訂單拒絕補印；`ConfirmPrint`：僅允許 `Open` 狀態訂單出單。`Views/Order/Details.cshtml` 作廢訂單不再顯示「補印出單」按鈕。
+
+**決策原因**
+
+- 正式環境 runtime image 不含 SDK／`dotnet-ef`，無法手動執行 `database update`；單店單一 web 實例，啟動時自動 Migrate 最簡單且不易遺漏。替代方案（idempotent SQL script、migration bundle）需額外部署步驟，暫不採用。
+- 作廢訂單補印「全單」可能讓廚房誤以為需要製作，後端與前端雙重阻擋。
+- 伺服器與資料庫待客戶測試完成後才購買；若改用雲端代管 MySQL，應用程式帳號需具備 CREATE／ALTER 權限才能執行 Migration。
+
+**驗證結果**
+
+- `dotnet build` 成功（0 警告 0 錯誤），`dotnet test` 通過。
+- 尚未連線資料庫實際啟動驗證，建議確認：程式可正常啟動（本機已是最新 schema，Migrate 應無動作）、報表「今日」包含早上 8 點前結帳的訂單。
+
+---
+
 ### [2026-09-23] UI/UX 優化：點餐客製化面板與加料管理套用焦糖橘 Design System
 
 **變更內容**
