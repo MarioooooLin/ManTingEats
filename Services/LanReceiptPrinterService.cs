@@ -41,14 +41,15 @@ public sealed class LanReceiptPrinterService : IReceiptPrinterService
         try
         {
             using var client = new TcpClient();
-            using var connectCts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
-            connectCts.CancelAfter(_options.TimeoutMs);
-            await client.ConnectAsync(_options.Host, _options.Port, connectCts.Token);
+            // 逾時涵蓋連線與寫入整段，避免印表機卡紙／緩衝區滿時寫入無限等待，導致出單頁面一直轉圈
+            using var timeoutCts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
+            timeoutCts.CancelAfter(_options.TimeoutMs);
+            await client.ConnectAsync(_options.Host, _options.Port, timeoutCts.Token);
 
             using var stream = client.GetStream();
             var bytes = TicketEncoding.GetBytes(content);
-            await stream.WriteAsync(bytes, cancellationToken);
-            await stream.FlushAsync(cancellationToken);
+            await stream.WriteAsync(bytes, timeoutCts.Token);
+            await stream.FlushAsync(timeoutCts.Token);
             return true;
         }
         catch (Exception ex)

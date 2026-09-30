@@ -169,7 +169,7 @@
                                 <label class="form-label">數量</label>
                                 <div class="qty-stepper">
                                     <button type="button" class="btn btn-outline-secondary qty-btn" data-step="-1">−</button>
-                                    <input type="number" name="Quantity" id="modalQuantity" value="1" min="1" step="1" required class="form-control" />
+                                    <input type="number" name="Quantity" id="modalQuantity" value="1" min="1" max="@ManTingEats.Models.Commands.OrderLimits.MaxQuantity" step="1" required class="form-control" />
                                     <button type="button" class="btn btn-outline-secondary qty-btn" data-step="1">+</button>
                                 </div>
                             </div>
@@ -219,7 +219,7 @@
                                                 </div>
                                                 <div class="qty-stepper addon-qty-stepper" style="display: none;">
                                                     <button type="button" class="btn btn-sm btn-outline-secondary qty-btn" data-step="-1">−</button>
-                                                    <input type="number" class="form-control form-control-sm addon-qty-input" value="1" min="1" step="1" style="width: 3.5rem;" />
+                                                    <input type="number" class="form-control form-control-sm addon-qty-input" value="1" min="1" max="@ManTingEats.Models.Commands.OrderLimits.MaxQuantity" step="1" style="width: 3.5rem;" />
                                                     <button type="button" class="btn btn-sm btn-outline-secondary qty-btn" data-step="1">+</button>
                                                 </div>
                                             </div>
@@ -347,7 +347,7 @@
             btn.addEventListener('click', function () {
                 var input = this.parentElement.querySelector('input[type="number"]');
                 var next = parseInt(input.value || '1', 10) + parseInt(this.dataset.step, 10);
-                input.value = Math.max(1, next);
+                input.value = Math.min(parseInt(input.max, 10) || 99, Math.max(1, next));
                 if (input.classList.contains('addon-qty-input')) {
                     updateCustomizeSubtotalFromForm();
                 }
