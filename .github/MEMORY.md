@@ -4,6 +4,72 @@
 
 ---
 
+### [2026-09-30] 首頁卡片按鈕對齊、導覽列順序調整、補齊隱私權政策
+
+**變更內容**
+
+- `wwwroot/css/site.css`：`.dashboard-card .card-body` 改為直向 flex，按鈕以 `margin-top: auto` 貼齊卡片底部；新增 `.privacy-content` 長文排版樣式。
+- `Views/Shared/_Layout.cshtml`：導覽列順序改為與首頁卡片一致（首頁 → 訂單 → 菜單管理 → 訂位記錄 → 支出記錄 → 營收報表）。
+- `Views/Home/Privacy.cshtml`：依《個人資料保護法》補齊隱私權政策，內容依系統實際行為撰寫（蒐集資料類別、利用方式、Cookie、當事人權利、資料安全、聯絡方式、政策修訂）；店家名稱為「香港爆辣冷麵」。
+
+**決策原因**
+
+- 首頁卡片說明文字行數不同，導致按鈕高低不一。
+- 隱私權政策僅寫系統實際蒐集的資料與實際使用的 Cookie（無追蹤／分析工具），避免與實際行為不符。
+
+**驗證結果**
+
+- Docker 重建後頁面正常回應 200。
+- 待辦：聯絡電話與信箱仍為佔位文字（`Privacy.cshtml` 頂端常數）；訂位資料目前無刪除功能，當事人請求刪除時需直接操作資料庫；正式上線前建議由熟悉個資法者審閱。
+
+---
+
+### [2026-09-30] 表單欄位限制：金額整數化與上限、訂位／支出日期範圍、桌號去空白、品項名稱不重複
+
+**變更內容**
+
+- 新增 `Models/Validation/WholeAmountAttribute.cs`：金額需為整數。
+- 金額上限（皆需整數）：品項售價 1～100,000；加料加價 0～10,000（開放 0 元免費加料）；支出金額 1～10,000,000。對應 View 的輸入框改為 `type="number" step="1"`。
+- 訂位：人數 1～50；`ReservationController.Create` 檢查訂位時間不可早於現在、不可超過一年後（以台灣時間比對）。
+- 支出：`ExpenseController` 新增／編輯時日期不可晚於今天（台灣時區）。
+- `OrderController.Create`：桌號去除前後空白。
+- `MenuController.Create`／`Edit`：品項名稱去除前後空白，且不可與其他品項重名（含已下架）。
+- `Services/TaipeiTime.cs` 新增 `Now`。
+- 新增 `tests/ManTingEats.Tests/AmountValidationTests.cs`：驗證上述上下限、整數規則與 `TaipeiTime` 換算。
+
+**決策原因**
+
+- 資料庫金額欄位為 `decimal(10,2)`，原上限 `double.MaxValue` 超過即存檔失敗（500）。
+- 台幣不收小數，且出單以 F0 列印，允許小數會造成畫面與出單金額不一致。
+- 營收報表品項排行以名稱分組，同名品項會被合併；僅於應用層檢查、不加資料庫唯一索引，避免既有重複資料使啟動時的 Migration 失敗。
+- Command 為 positional record，驗證屬性掛在建構子參數上；測試需比照 MVC 讀取參數屬性，`Validator.TryValidateObject` 會漏掉。
+
+**驗證結果**
+
+- `dotnet build` 成功。
+- 既有資料若有小數售價或重名品項，編輯該筆時需一併修正才能儲存。
+
+---
+
+### [2026-09-30] 點餐數量加上限、印表機寫入逾時
+
+**變更內容**
+
+- `Models/Commands/OrderCommands.cs`：新增 `OrderLimits.MaxQuantity = 99`，`AddOrderItemCommand.Quantity` 與 `AddOnSelectionCommand.Quantity` 改為 `Range(1, 99)`。
+- `Views/Order/Details.cshtml`：品項與加料數量輸入框加上 `max`，「＋」按鈕不會超過上限。
+- `Services/LanReceiptPrinterService.cs`：`TimeoutMs` 由僅限連線階段改為涵蓋連線＋寫入＋Flush 整段。
+
+**決策原因**
+
+- 原本數量上限為 `int.MaxValue`，極端值會使金額超出 `decimal(10,2)`，存檔時資料庫報錯導致 500。
+- 印表機卡紙或緩衝區滿時，寫入可能無限等待，出單／結帳頁面會一直轉圈。
+
+**驗證結果**
+
+- `dotnet build` 成功，`dotnet test` 通過；尚未連接實體印表機驗證逾時行為。
+
+---
+
 ### [2026-09-30] 登入防暴力破解強化、訂單詳情頁 JS 錯誤修正、新增 .dockerignore
 
 **變更內容**
