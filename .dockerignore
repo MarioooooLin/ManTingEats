@@ -1,0 +1,23 @@
+# 本機建置產物：若複製進容器會覆蓋容器內 restore 結果（obj/project.assets.json 含 Windows 路徑），導致 publish 失敗
+**/bin/
+**/obj/
+
+# 機密與備份：不應進入 build context 或 image layer
+.env
+*.env
+backups/
+
+# 與 image 無關的檔案
+.git/
+.github/
+.vs/
+.vscode/
+.idea/
+tests/
+docs/
+scripts/
+**/*.user
+Dockerfile
+docker-compose*.yml
+Caddyfile
+README.md

@@ -384,7 +384,9 @@
             document.getElementById('customizeSubtotal').textContent = total.toFixed(0);
         }
 
-        document.getElementById('customizeForm').addEventListener('submit', function (event) {
+        // 客製化表單僅在訂單未結帳且有上架品項時才會輸出，需先判斷避免 null 錯誤中斷後續腳本
+        var customizeForm = document.getElementById('customizeForm');
+        if (customizeForm) customizeForm.addEventListener('submit', function (event) {
             var form = event.target;
             form.querySelectorAll('input[data-generated-addon]').forEach(function (el) { el.remove(); });
 

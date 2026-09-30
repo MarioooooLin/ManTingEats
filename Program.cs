@@ -1,4 +1,6 @@
 using System.Text;
+using System.Threading.RateLimiting;
+using ManTingEats.Controllers;
 using ManTingEats.Data;
 using ManTingEats.Models.Entities;
 using ManTingEats.Models.Options;
@@ -61,6 +63,26 @@ builder.Services.AddAuthentication(CookieAuthenticationDefaults.AuthenticationSc
     });
 builder.Services.AddAuthorization();
 
+// 登入端點依來源 IP 限流，防止換帳號大小寫或多帳號輪流嘗試的暴力破解
+builder.Services.AddRateLimiter(options =>
+{
+    options.AddPolicy(AccountController.LoginRateLimitPolicy, context =>
+        RateLimitPartition.GetFixedWindowLimiter(
+            context.Connection.RemoteIpAddress?.ToString() ?? "unknown",
+            _ => new FixedWindowRateLimiterOptions
+            {
+                PermitLimit = 10,
+                Window = TimeSpan.FromMinutes(1),
+                QueueLimit = 0
+            }));
+    options.OnRejected = async (context, cancellationToken) =>
+    {
+        context.HttpContext.Response.StatusCode = StatusCodes.Status429TooManyRequests;
+        context.HttpContext.Response.ContentType = "text/plain; charset=utf-8";
+        await context.HttpContext.Response.WriteAsync("登入嘗試過於頻繁，請稍候一分鐘再試。", cancellationToken);
+    };
+});
+
 var app = builder.Build();
 
 // 套用 Migration 後，首次啟動時若無任何員工帳號，種一組管理者帳號（帳密來自設定檔，不寫死於程式碼）
@@ -93,6 +115,8 @@ app.UseForwardedHeaders(forwardedHeadersOptions);
 
 app.UseHttpsRedirection();
 app.UseRouting();
+// 需在 UseRouting 之後，端點上的 [EnableRateLimiting] 才會生效
+app.UseRateLimiter();
 
 app.UseAuthentication();
 app.UseAuthorization();

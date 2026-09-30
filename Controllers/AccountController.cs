@@ -6,6 +6,7 @@ using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Authentication.Cookies;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.RateLimiting;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Caching.Memory;
 
@@ -13,6 +14,8 @@ namespace ManTingEats.Controllers;
 
 public sealed class AccountController : Controller
 {
+    public const string LoginRateLimitPolicy = "login";
+
     private const int MaxFailedAttempts = 5;
     private static readonly TimeSpan LockoutDuration = TimeSpan.FromMinutes(15);
 
@@ -41,6 +44,7 @@ public sealed class AccountController : Controller
 
     [HttpPost]
     [ValidateAntiForgeryToken]
+    [EnableRateLimiting(LoginRateLimitPolicy)]
     public async Task<IActionResult> Login(LoginViewModel model, string? returnUrl = null)
     {
         if (!ModelState.IsValid)
@@ -48,7 +52,10 @@ public sealed class AccountController : Controller
             return View(model);
         }
 
-        var lockoutKey = $"login-lockout:{model.Username}";
+        // 帳號比對在 MySQL 為不分大小寫，key 需正規化避免以大小寫變化繞過次數限制；
+        // 並綁定來源 IP，避免外部攻擊者故意輸錯密碼把店內管理者帳號鎖住（總嘗試次數另由 IP 限流把關）
+        var clientIp = HttpContext.Connection.RemoteIpAddress?.ToString() ?? "unknown";
+        var lockoutKey = $"login-lockout:{model.Username.Trim().ToUpperInvariant()}:{clientIp}";
         if (_cache.TryGetValue<int>(lockoutKey, out var failedCount) && failedCount >= MaxFailedAttempts)
         {
             ModelState.AddModelError(string.Empty, "登入嘗試次數過多，請 15 分鐘後再試。");
