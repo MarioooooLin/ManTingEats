@@ -4,6 +4,27 @@
 
 ---
 
+### [2026-09-30] 登入防暴力破解強化、訂單詳情頁 JS 錯誤修正、新增 .dockerignore
+
+**變更內容**
+
+- `AccountController.Login`：失敗次數鎖定的 key 改為「正規化帳號（Trim + 大寫）＋來源 IP」；POST 套用 `[EnableRateLimiting("login")]`。
+- `Program.cs`：註冊 `AddRateLimiter`，登入端點依來源 IP 限制每分鐘 10 次，超過回傳 429 與中文訊息；`UseRateLimiter()` 置於 `UseRouting()` 之後。
+- `Views/Order/Details.cshtml`：`#customizeForm` 不存在時（已結帳／作廢、無上架品項）略過事件綁定，避免 TypeError 中斷後續「防重複送出」腳本。
+- 新增 `.dockerignore`：排除 `bin/`、`obj/`、`.env`、`backups/`、`.git/`、`tests/` 等。
+
+**決策原因**
+
+- MySQL collation 不分大小寫（且不分重音），原本以原始輸入當 key，可用 `Admin`／`ADMIN` 等變化各取得 5 次嘗試；加上 IP 維度可避免外部攻擊者故意輸錯把店內管理者鎖住。總嘗試量改由 IP 限流把關。
+- 未排除本機 `obj/` 時，`COPY . ./` 會以含 Windows 路徑的 `project.assets.json` 覆蓋容器內 restore 結果。
+
+**驗證結果**
+
+- `dotnet build` 成功，`dotnet test` 通過；`docker build` 成功，image 內容僅含 publish 產物。
+- 限流與鎖定尚未實際啟動網站驗證（需資料庫）。
+
+---
+
 ### [2026-09-30] 啟動時自動套用 Migration、修正營收報表時區偏差與作廢訂單補印問題
 
 **變更內容**
