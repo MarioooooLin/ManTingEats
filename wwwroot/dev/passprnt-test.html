@@ -1,0 +1,163 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="出單測試">
+<title>PassPRNT 出單測試</title>
+<style>
+  :root { --brand: #c97a2b; --ok: #1f8a4c; --bad: #c0392b; --warn: #b7791f; --bg: #faf7f3; --card: #fff; --text: #2b2b2b; --muted: #777; }
+  * { box-sizing: border-box; }
+  body { margin: 0; padding: 16px; font-family: -apple-system, "PingFang TC", "Noto Sans TC", sans-serif; background: var(--bg); color: var(--text); }
+  main { max-width: 640px; margin: 0 auto; }
+  h1 { font-size: 1.5rem; margin: 8px 0 4px; }
+  p.lead { color: var(--muted); margin: 0 0 16px; }
+  .card { background: var(--card); border-radius: 14px; padding: 16px; margin-bottom: 16px; box-shadow: 0 1px 4px rgba(0,0,0,.08); }
+  .btn { display: block; width: 100%; border: 0; border-radius: 12px; padding: 18px; font-size: 1.2rem; font-weight: 700; color: #fff; background: var(--brand); margin-bottom: 12px; }
+  .btn.secondary { background: #6b5b4b; }
+  .btn:active { opacity: .8; }
+  .result { font-size: 1.3rem; font-weight: 700; padding: 14px; border-radius: 10px; margin-bottom: 8px; }
+  .result.ok { background: #e3f4ea; color: var(--ok); }
+  .result.bad { background: #fbe5e3; color: var(--bad); }
+  .result.warn { background: #fdf2dc; color: var(--warn); }
+  table { width: 100%; border-collapse: collapse; font-size: .95rem; }
+  td { padding: 6px 4px; border-bottom: 1px solid #eee; vertical-align: top; }
+  td:first-child { color: var(--muted); width: 40%; }
+  ol { padding-left: 1.2rem; line-height: 1.8; margin: 0; }
+  code { background: #f1ece6; padding: 1px 5px; border-radius: 4px; word-break: break-all; }
+</style>
+</head>
+<body>
+<main>
+  <h1>🖨️ PassPRNT 出單測試</h1>
+  <p class="lead">測完後把下方「測試結果」截圖給開發者。</p>
+
+  <div id="resultCard" class="card" hidden>
+    <div id="printResult" class="result"></div>
+    <div id="tabResult" class="result"></div>
+  </div>
+
+  <div class="card">
+    <button class="btn" id="btnSimple">測試 1：簡單中文測試</button>
+    <button class="btn secondary" id="btnTicket">測試 2：模擬真實出單</button>
+  </div>
+
+  <div class="card">
+    <strong>測試結果</strong>
+    <table>
+      <tr><td>列印結果代碼</td><td id="infoCode">（尚未列印）</td></tr>
+      <tr><td>列印結果訊息</td><td id="infoMessage">—</td></tr>
+      <tr><td>本分頁開啟次數</td><td id="infoLoads">—</td></tr>
+      <tr><td>主畫面 App 模式</td><td id="infoStandalone">—</td></tr>
+      <tr><td>頁面載入時間</td><td id="infoTime">—</td></tr>
+    </table>
+  </div>
+
+  <div class="card">
+    <strong>測試步驟</strong>
+    <ol>
+      <li>iPad 用 USB 線接好出單機，出單機開機。</li>
+      <li>按「測試 1」。若跳出「是否在 PassPRNT 中打開」，記下有跳出，再按「打開」。</li>
+      <li>確認出單機有印出紙張，並看是否自動切紙。</li>
+      <li>切回這個頁面後，看上方的綠色／紅色結果。</li>
+      <li>再按一次「測試 1」，確認第二次是否還會跳確認視窗。</li>
+      <li>按「測試 2」，看真實出單的排版是否清楚。</li>
+      <li>（加分）Safari 分享按鈕 →「加入主畫面」，從主畫面圖示打開再測一次。</li>
+    </ol>
+  </div>
+</main>
+
+<script>
+(function () {
+  // 測試用列印內容：PassPRNT 會把 HTML 轉成圖片列印，中文由 iPad 字型處理（不需 Big5）
+  var now = new Date();
+  var timeText = now.getFullYear() + '/' + pad(now.getMonth() + 1) + '/' + pad(now.getDate()) + ' ' + pad(now.getHours()) + ':' + pad(now.getMinutes());
+
+  var simpleHtml =
+    '<html><head><meta charset="utf-8"></head><body style="font-family:-apple-system,\'PingFang TC\',sans-serif;margin:0;padding:8px;">' +
+    '<div style="font-size:40px;font-weight:bold;text-align:center;">中文測試</div>' +
+    '<div style="font-size:28px;text-align:center;">香港爆辣冷麵</div>' +
+    '<div style="font-size:24px;text-align:center;">' + timeText + '</div>' +
+    '<div style="font-size:24px;">繁體：麵、辣、蔥、雞蛋、豬肉</div>' +
+    '</body></html>';
+
+  var ticketHtml =
+    '<html><head><meta charset="utf-8"></head><body style="font-family:-apple-system,\'PingFang TC\',sans-serif;margin:0;padding:8px;font-size:26px;">' +
+    '<div style="text-align:center;font-size:44px;font-weight:bold;border-top:4px solid #000;border-bottom:4px solid #000;padding:6px 0;">全　單</div>' +
+    '<table style="width:100%;font-size:28px;margin-top:8px;">' +
+      '<tr><td>訂單編號</td><td style="text-align:right;font-size:40px;font-weight:bold;">#12</td></tr>' +
+      '<tr><td>通路</td><td style="text-align:right;">內用</td></tr>' +
+      '<tr><td>桌號</td><td style="text-align:right;font-size:40px;font-weight:bold;">A3</td></tr>' +
+      '<tr><td>時間</td><td style="text-align:right;">' + timeText + '</td></tr>' +
+    '</table>' +
+    '<hr style="border:0;border-top:2px dashed #000;">' +
+    '<div style="font-size:32px;font-weight:bold;">爆辣冷麵　x1</div>' +
+    '<div style="padding-left:24px;">辣度：大辣</div>' +
+    '<div style="padding-left:24px;">加料：加蛋 x1、加肉 x2</div>' +
+    '<div style="padding-left:24px;">備註：不要蔥</div>' +
+    '<div style="font-size:32px;font-weight:bold;margin-top:10px;">酸梅湯　x2</div>' +
+    '<hr style="border:0;border-top:2px dashed #000;">' +
+    '<table style="width:100%;font-size:32px;"><tr><td>總金額</td><td style="text-align:right;font-weight:bold;">$285</td></tr></table>' +
+    '</body></html>';
+
+  document.getElementById('btnSimple').addEventListener('click', function () { print(simpleHtml); });
+  document.getElementById('btnTicket').addEventListener('click', function () { print(ticketHtml); });
+
+  function print(html) {
+    // 回呼網址去掉舊的查詢參數，避免每次印完網址越接越長
+    var back = location.origin + location.pathname;
+    var url = 'starpassprnt://v1/print/nopreview?'
+      + 'back=' + encodeURIComponent(back)
+      + '&html=' + encodeURIComponent(html)
+      + '&size=3'          // 3 吋紙（80mm）
+      + '&cut=partial'     // 印完自動半切
+      + '&popup=enable';   // 錯誤時由 PassPRNT 跳出訊息
+    location.href = url;
+  }
+
+  function pad(n) { return n < 10 ? '0' + n : '' + n; }
+
+  // sessionStorage 每個分頁各自獨立：印完切回來若次數歸 1，代表 PassPRNT 開了新分頁
+  var loads = 1;
+  try {
+    loads = parseInt(sessionStorage.getItem('passprnt-test-loads') || '0', 10) + 1;
+    sessionStorage.setItem('passprnt-test-loads', String(loads));
+  } catch (e) { loads = -1; }
+
+  var params = new URLSearchParams(location.search);
+  var code = params.get('passprnt_code');
+  var message = params.get('passprnt_message');
+
+  document.getElementById('infoLoads').textContent = loads === -1 ? '無法判斷' : loads + ' 次';
+  document.getElementById('infoStandalone').textContent = navigator.standalone ? '是（從主畫面開啟）' : '否（Safari 內開啟）';
+  document.getElementById('infoTime').textContent = new Date().toLocaleTimeString('zh-TW');
+
+  if (code !== null) {
+    document.getElementById('resultCard').hidden = false;
+    document.getElementById('infoCode').textContent = code;
+    document.getElementById('infoMessage').textContent = message || '—';
+
+    var printEl = document.getElementById('printResult');
+    if (code === '0') {
+      printEl.className = 'result ok';
+      printEl.textContent = '✅ 列印成功';
+    } else {
+      printEl.className = 'result bad';
+      printEl.textContent = '❌ 列印失敗（代碼 ' + code + '）' + (message ? '：' + message : '');
+    }
+
+    var tabEl = document.getElementById('tabResult');
+    if (loads > 1) {
+      tabEl.className = 'result ok';
+      tabEl.textContent = '✅ 回到同一個分頁';
+    } else {
+      tabEl.className = 'result warn';
+      tabEl.textContent = '⚠️ 開了新分頁（請看 Safari 分頁數量）';
+    }
+  }
+})();
+</script>
+</body>
+</html>

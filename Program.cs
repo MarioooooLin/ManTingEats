@@ -114,6 +114,21 @@ forwardedHeadersOptions.KnownProxies.Clear();
 app.UseForwardedHeaders(forwardedHeadersOptions);
 
 app.UseHttpsRedirection();
+
+// wwwroot/dev/ 為開發測試頁（例如 PassPRNT 出單測試），正式環境一律回 404
+if (!app.Environment.IsDevelopment())
+{
+    app.Use(async (context, next) =>
+    {
+        if (context.Request.Path.StartsWithSegments("/dev"))
+        {
+            context.Response.StatusCode = StatusCodes.Status404NotFound;
+            return;
+        }
+        await next();
+    });
+}
+
 app.UseRouting();
 // 需在 UseRouting 之後，端點上的 [EnableRateLimiting] 才會生效
 app.UseRateLimiter();
