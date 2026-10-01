@@ -1,0 +1,2 @@
+# Shell 腳本一律使用 LF 換行：Windows 上 clone 若轉成 CRLF，sh 執行會出錯（例如 set: Illegal option -e）
+*.sh text eol=lf
