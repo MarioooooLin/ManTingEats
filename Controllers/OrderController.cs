@@ -382,12 +382,7 @@ public sealed class OrderController : Controller
     [ValidateAntiForgeryToken]
     public async Task<IActionResult> Void(int id, VoidOrderCommand command)
     {
-        var order = await _db.Orders
-            .Include(o => o.Items)
-                .ThenInclude(i => i.MenuItem)
-            .Include(o => o.Items)
-                .ThenInclude(i => i.AddOns)
-            .SingleOrDefaultAsync(o => o.Id == id);
+        var order = await _db.Orders.FindAsync(id);
         if (order is null)
         {
             return NotFound();
@@ -405,19 +400,12 @@ public sealed class OrderController : Controller
             return RedirectToAction(nameof(Details), new { id });
         }
 
-        // 作廢需留下操作者與原因，供稽核追蹤
+        // 作廢需留下操作者與原因，供稽核追蹤；不列印作廢通知，由店長在原出單紙本上手動打叉
         order.Status = OrderStatus.Voided;
         order.VoidReason = command.Reason;
         order.VoidedByEmployeeId = CurrentEmployeeId;
         await _db.SaveChangesAsync();
         TempData["Success"] = "訂單已作廢。";
-
-        // 尚未有任何品項送過廚房，無需列印作廢通知
-        var hasPrintedItems = order.Items.Any(i => i.IsPrinted);
-        if (hasPrintedItems && !await _printer.PrintVoidNoticeAsync(order))
-        {
-            TempData["Warning"] = "⬆ 作廢通知列印失敗，請確認印表機並手動告知廚房。";
-        }
 
         return RedirectToAction(nameof(Details), new { id });
     }

@@ -10,7 +10,4 @@ public interface IReceiptPrinterService
 
     /// <summary>後續加點時僅列印本次新增的品項。</summary>
     Task<bool> PrintAddedItemsAsync(Order order, IReadOnlyList<OrderItem> addedItems, CancellationToken cancellationToken = default);
-
-    /// <summary>作廢訂單時列印通知，提示廚房停止製作。</summary>
-    Task<bool> PrintVoidNoticeAsync(Order order, CancellationToken cancellationToken = default);
 }

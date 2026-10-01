@@ -28,9 +28,6 @@ public sealed class LanReceiptPrinterService : IReceiptPrinterService
     public Task<bool> PrintAddedItemsAsync(Order order, IReadOnlyList<OrderItem> addedItems, CancellationToken cancellationToken = default)
         => SendAsync(order.Id, "加點單", BuildAddedItemsTicket(order, addedItems), cancellationToken);
 
-    public Task<bool> PrintVoidNoticeAsync(Order order, CancellationToken cancellationToken = default)
-        => SendAsync(order.Id, "作廢通知", BuildVoidTicket(order), cancellationToken);
-
     private async Task<bool> SendAsync(int orderId, string ticketName, string content, CancellationToken cancellationToken)
     {
         if (!_options.Enabled)
@@ -80,22 +77,6 @@ public sealed class LanReceiptPrinterService : IReceiptPrinterService
             AppendItemLine(sb, item);
         }
         AppendTotalFooter(sb, order.TotalAmount, "訂單目前總金額");
-        return sb.ToString();
-    }
-
-    private static string BuildVoidTicket(Order order)
-    {
-        var sb = new StringBuilder();
-        AppendHeader(sb, "作廢通知", order);
-        sb.AppendLine("請立即停止製作以下品項：");
-        sb.AppendLine("------------------------");
-        foreach (var item in order.Items)
-        {
-            sb.AppendLine($"{item.MenuItem?.Name} x{item.Quantity}");
-        }
-        sb.AppendLine("========================");
-        sb.AppendLine();
-        sb.AppendLine();
         return sb.ToString();
     }
 
