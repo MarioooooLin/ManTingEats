@@ -4,6 +4,89 @@
 
 ---
 
+## 📍 目前進度與下一步（交接用，每次收工前更新）
+
+> 最後更新：2026-10-01。開發者會在公司與家裡兩台電腦間切換，**對話紀錄不會同步**，接手時以本段為準。
+
+### 進行中：出單列印改為 iPad + PassPRNT
+
+- **背景**：主機將放在雲端；店內路由器離印表機太遠、無法拉網路線，原本「伺服器以 TCP 9100 直連印表機」的 `LanReceiptPrinterService` 方案不適用。
+- **印表機**：Star mC-Print3 **MCP31L BK TC**（介面：LAN、USB-A 2.4A、USB-B；無 Wi-Fi、無藍牙）。
+- **選定方案**：iPad 以 USB 線接印表機 **USB-A（2.4A）孔**（同時充電），網頁透過 Star **PassPRNT** App 的 URL scheme 列印：
+  `starpassprnt://v1/print/nopreview?back=<回呼網址>&html=<出單 HTML>&size=3&cut=partial&popup=enable`
+  - PassPRNT 將 HTML 轉成圖片列印 → 中文由 iPad 字型處理，**不需 Big5**。
+  - 印完回到 `back` 網址並附上 `passprnt_code`（`0` = 成功）與 `passprnt_message` → 系統**可得知列印成功與否**，據此標記 `IsPrinted`。
+  - 已排除的替代方案：Wi-Fi 延伸器／電力線讓印表機上網 + Star CloudPRNT（需額外硬體、改動較大，保留為未來多裝置出單時的選項）。
+- **已確認**：2026-09-30 使用者到店實測，iPad 可透過 PassPRNT 以 USB 連上印表機。
+- **等待中（下一步）**：使用者用 iPad 開啟測試頁 `wwwroot/dev/passprnt-test.html`（透過 Cloudflare 快速通道，作法見根目錄 `CLAUDE.md`）回報：
+  1. 是否列印成功、**是否自動切紙**
+  2. Safari 是否每次跳「是否在 PassPRNT 中打開」確認視窗
+  3. 印完回來是**同一分頁**還是**開新分頁**（測試頁會自動判斷顯示）
+  4. 「測試 2：模擬真實出單」的排版與字體大小是否清楚
+  5. 「加入主畫面」模式下 2、3 項是否改善
+- **拿到結果後**：撰寫 `docs/prd/v5.md`（出單改為 PassPRNT 的規格：出單 HTML 版面、確認出單／結帳補印／補印的流程、失敗處理），使用者確認後再改寫 `OrderController` 列印流程與 `Views/Order/Details.cshtml`；`LanReceiptPrinterService` 屆時移除或保留備用。
+- **已決議**：作廢訂單不列印（店長在原出單手動打叉），見 2026-09-30 紀錄。
+
+### Review 待辦（2026-09-29 全專案 review 後尚未處理）
+
+- 低 1：補 `OrderController` 測試（金額計算、狀態轉換、客製化驗證）——建議上線前完成。
+- 低 2：`DailyNumber` 與 `TotalAmount` 併發競態——單店機率低，先觀察。
+- 低 4：營收報表品項排行未計入加料金額——**待使用者決定**：計入或於畫面註明。
+- 低 5：訂單／支出列表無分頁或預設日期範圍——上線前處理。
+- 低 7：備份腳本（root 密碼在指令列、未壓縮、未異地備份）——確定雲端主機／資料庫形式後再處理。
+- 低 8：README 與正式部署清單——買主機時一起整理。
+- 訂位資料無刪除／編輯功能——隱私權政策承諾可請求刪除，需補上。
+- 隱私權政策聯絡電話、信箱仍為佔位文字（`Views/Home/Privacy.cshtml` 頂端常數）。
+
+### 環境備註
+
+- 新電腦：`git clone` → `docker compose up -d --build` → `sh scripts/dev-data/import-menu-seed.sh`（匯入測試菜單）。開發帳號 admin / 123。
+- GitHub repo 為**公開**，不得 commit 真實資料或機密。
+
+---
+
+### [2026-10-01] 交接準備：CLAUDE.md、測試菜單匯入腳本、PassPRNT 測試頁
+
+**變更內容**
+
+- 新增根目錄 `CLAUDE.md`：引導 Claude Code 先讀本檔「目前進度」與 `.github/` 規範，並記錄本機開發指令、Cloudflare 快速通道用法與注意事項。
+- 新增 `scripts/dev-data/menu-seed.sql`（6 筆測試品項、2 筆加料）與 `import-menu-seed.sh`（`INSERT IGNORE`，可重複執行）。
+- 新增 `wwwroot/dev/passprnt-test.html`：PassPRNT 出單實測頁（簡單中文、模擬全單兩種測試；自動判斷列印結果與是否開新分頁）。
+- `Program.cs`：非 Development 環境下 `/dev` 路徑一律回 404。
+- `.github/BRIEFING.md`：出單列印模組狀態更新為 PassPRNT 方向，並修正兩處換行黏行。
+
+**決策原因**
+
+- 開發者需在兩台電腦間切換，Claude Code 對話不會同步，進度改以 repo 內文件交接。
+- repo 為公開：資料庫只匯出無個資的菜單／加料，不匯出訂單、訂位、員工。
+- 測試頁需納入版控以便在家延續測試，但不應出現在正式環境，故以環境判斷封鎖。
+
+**驗證結果**
+
+- 匯入腳本於現有資料庫重複執行，筆數不變。
+- Development 環境 `/dev/passprnt-test.html` 回 200；以 Production 環境啟動同一 image，`/dev` 回 404、登入頁回 200。
+
+---
+
+### [2026-09-30] 取消作廢通知列印
+
+**變更內容**
+
+- `OrderController.Void`：作廢後不再列印作廢通知，查詢簡化為 `FindAsync`（不再需要載入品項）。
+- `IReceiptPrinterService`／`LanReceiptPrinterService`：移除 `PrintVoidNoticeAsync` 與 `BuildVoidTicket`。
+- `docs/prd/v3.md`、`docs/prd/v4.md`：同步更新規格，作廢訂單改為不列印。
+
+**決策原因**
+
+- 使用者表示作廢時直接在原出單紙本上手動打叉即可，不需另印一張；同時解決「作廢已結帳訂單仍印出『請立即停止製作』」的語意問題（review 低 3）。
+- 作廢仍保留操作者與原因的稽核紀錄，不受影響。
+
+**驗證結果**
+
+- `dotnet build` 成功，`dotnet test` 通過。
+
+---
+
 ### [2026-09-30] 首頁卡片按鈕對齊、導覽列順序調整、補齊隱私權政策
 
 **變更內容**
