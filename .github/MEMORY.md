@@ -6,25 +6,29 @@
 
 ## 📍 目前進度與下一步（交接用，每次收工前更新）
 
-> 最後更新：2026-10-01。開發者會在公司與家裡兩台電腦間切換，**對話紀錄不會同步**，接手時以本段為準。
+> 最後更新：2026-10-04。開發者會在公司與家裡兩台電腦間切換，**對話紀錄不會同步**，接手時以本段為準。
 
 ### 進行中：出單列印改為 iPad + PassPRNT
 
 - **背景**：主機將放在雲端；店內路由器離印表機太遠、無法拉網路線，原本「伺服器以 TCP 9100 直連印表機」的 `LanReceiptPrinterService` 方案不適用。
 - **印表機**：Star mC-Print3 **MCP31L BK TC**（介面：LAN、USB-A 2.4A、USB-B；無 Wi-Fi、無藍牙）。
+- **紙寬**：店內使用 **58mm 紙**（實寬約 6 公分），PassPRNT 參數須為 `size=2`；印表機與 PassPRNT App 的紙寬設定也須為 58mm。
 - **選定方案**：iPad 以 USB 線接印表機 **USB-A（2.4A）孔**（同時充電），網頁透過 Star **PassPRNT** App 的 URL scheme 列印：
-  `starpassprnt://v1/print/nopreview?back=<回呼網址>&html=<出單 HTML>&size=3&cut=partial&popup=enable`
+  `starpassprnt://v1/print/nopreview?back=<回呼網址>&html=<出單 HTML>&size=2&cut=partial&popup=enable`
   - PassPRNT 將 HTML 轉成圖片列印 → 中文由 iPad 字型處理，**不需 Big5**。
   - 印完回到 `back` 網址並附上 `passprnt_code`（`0` = 成功）與 `passprnt_message` → 系統**可得知列印成功與否**，據此標記 `IsPrinted`。
   - 已排除的替代方案：Wi-Fi 延伸器／電力線讓印表機上網 + Star CloudPRNT（需額外硬體、改動較大，保留為未來多裝置出單時的選項）。
 - **已確認**：2026-09-30 使用者到店實測，iPad 可透過 PassPRNT 以 USB 連上印表機。
-- **等待中（下一步）**：使用者用 iPad 開啟測試頁 `wwwroot/dev/passprnt-test.html`（透過 Cloudflare 快速通道，作法見根目錄 `CLAUDE.md`）回報：
-  1. 是否列印成功、**是否自動切紙**
-  2. Safari 是否每次跳「是否在 PassPRNT 中打開」確認視窗
-  3. 印完回來是**同一分頁**還是**開新分頁**（測試頁會自動判斷顯示）
-  4. 「測試 2：模擬真實出單」的排版與字體大小是否清楚
-  5. 「加入主畫面」模式下 2、3 項是否改善
-- **拿到結果後**：撰寫 `docs/prd/v5.md`（出單改為 PassPRNT 的規格：出單 HTML 版面、確認出單／結帳補印／補印的流程、失敗處理），使用者確認後再改寫 `OrderController` 列印流程與 `Views/Order/Details.cshtml`；`LanReceiptPrinterService` 屆時移除或保留備用。
+- **實測結果（2026-10-04）**：
+  - 中文列印正常、**會自動切紙**。
+  - 原本 `size=3`（80mm）排版在 58mm 紙上右側被裁切 → 改 `size=2` 並縮小版面後完整印出。
+  - 出單版面字級已由使用者確認：品名／數量 36px 粗體（數量靠右、品名過長換行）、辣度／加料／備註 30px、其餘資訊 22px、「全單」標題 36px、訂單編號／桌號 32px。實作見 `wwwroot/dev/passprnt-test.html` 的 `ticketHtml`、`itemRow`、`detailRow`。
+- **尚未回報（下次實測補問）**：
+  1. Safari 是否每次跳「是否在 PassPRNT 中打開」確認視窗
+  2. 印完回來是**同一分頁**還是**開新分頁**（測試頁會自動判斷顯示）
+  3. 「加入主畫面」模式下 1、2 項是否改善
+  - 第 1、2 點影響 v5 的流程設計（例如回呼後如何標記 `IsPrinted`），可先撰寫 v5 其餘部分，此處留待確認。
+- **下一步**：撰寫 `docs/prd/v5.md`（出單改為 PassPRNT 的規格：採用上述 58mm 版面與字級、確認出單／結帳補印／補印的流程、失敗處理），使用者確認後再改寫 `OrderController` 列印流程與 `Views/Order/Details.cshtml`；`LanReceiptPrinterService` 屆時移除或保留備用。
 - **已決議**：作廢訂單不列印（店長在原出單手動打叉），見 2026-09-30 紀錄。
 
 ### Review 待辦（2026-09-29 全專案 review 後尚未處理）
@@ -41,7 +45,33 @@
 ### 環境備註
 
 - 新電腦：`git clone` → `docker compose up -d --build` → `sh scripts/dev-data/import-menu-seed.sh`（匯入測試菜單）。開發帳號 admin / 123。
+- 首次啟動若 web 的 Migration 因 MySQL 尚在初始化而失敗，`docker compose restart web` 即可。
+- 若本機已裝 MySQL 佔用 3306（Mac 那台即是），需先到「系統設定 → MySQL」停用，否則 db 容器無法啟動。
 - GitHub repo 為**公開**，不得 commit 真實資料或機密。
+
+---
+
+### [2026-10-04] PassPRNT 測試頁改為 58mm 紙寬並放大品項字級
+
+**變更內容**
+
+- `wwwroot/dev/passprnt-test.html`：
+  - PassPRNT 紙寬參數 `size=3`（80mm）改為 `size=2`（58mm）。
+  - 全單版面整體縮小以符合 58mm 可印寬度（約 48mm／384 dots），並加上 `word-break:break-all` 避免長字串被裁切。
+  - 新增 `itemRow`：品名／數量 36px 粗體，數量固定靠右、品名過長於左欄換行；新增長品名範例測試換行。
+  - 新增 `detailRow`：辣度／加料／備註 30px，內縮於品名下方。
+
+**決策原因**
+
+- 實測發現時間那行右側被切掉：店內實際用 58mm 紙，原測試頁依 80mm 排版。
+- 品名、數量與客製化內容是廚房製作時最需要一眼看清的資訊，依使用者要求放大；其餘資訊維持小字以免整張過長。
+- 新電腦首次 `docker compose up` 時，本機 Mac 已安裝的 MySQL 佔用 3306，使用者選擇停用本機 MySQL（不改專案設定）。另觀察到首次啟動 MySQL 初始化較慢，web 的自動 Migration 會先失敗，重啟 web 即可；尚未加 healthcheck。
+
+**驗證結果**
+
+- 使用者以 iPad + PassPRNT 實測：時間那行完整印出、會自動切紙，最終字級已確認可用。
+- Safari 確認視窗、是否開新分頁兩項尚未回報。
+- 測試完成後已移除 Cloudflare 快速通道容器。
 
 ---
 
