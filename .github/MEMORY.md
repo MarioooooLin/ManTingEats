@@ -8,32 +8,28 @@
 
 > 最後更新：2026-10-04。開發者會在公司與家裡兩台電腦間切換，**對話紀錄不會同步**，接手時以本段為準。
 
-### 進行中：出單列印改為 iPad + PassPRNT
+### 出單列印改為 iPad + PassPRNT（2026-10-04 實機測試通過）
 
-- **背景**：主機將放在雲端；店內路由器離印表機太遠、無法拉網路線，原本「伺服器以 TCP 9100 直連印表機」的 `LanReceiptPrinterService` 方案不適用。
-- **印表機**：Star mC-Print3 **MCP31L BK TC**（介面：LAN、USB-A 2.4A、USB-B；無 Wi-Fi、無藍牙）。
-- **紙寬**：店內使用 **58mm 紙**（實寬約 6 公分），PassPRNT 參數須為 `size=2`；印表機與 PassPRNT App 的紙寬設定也須為 58mm。
-- **選定方案**：iPad 以 USB 線接印表機 **USB-A（2.4A）孔**（同時充電），網頁透過 Star **PassPRNT** App 的 URL scheme 列印：
-  `starpassprnt://v1/print/nopreview?back=<回呼網址>&html=<出單 HTML>&size=2&cut=partial&popup=enable`
-  - PassPRNT 將 HTML 轉成圖片列印 → 中文由 iPad 字型處理，**不需 Big5**。
-  - 印完回到 `back` 網址並附上 `passprnt_code`（`0` = 成功）與 `passprnt_message` → 系統**可得知列印成功與否**，據此標記 `IsPrinted`。
-  - 已排除的替代方案：Wi-Fi 延伸器／電力線讓印表機上網 + Star CloudPRNT（需額外硬體、改動較大，保留為未來多裝置出單時的選項）。
-- **已確認**：2026-09-30 使用者到店實測，iPad 可透過 PassPRNT 以 USB 連上印表機。
-- **實測結果（2026-10-04）**：
-  - 中文列印正常、**會自動切紙**。
-  - 原本 `size=3`（80mm）排版在 58mm 紙上右側被裁切 → 改 `size=2` 並縮小版面後完整印出。
-  - 出單版面字級已由使用者確認：品名／數量 36px 粗體（數量靠右、品名過長換行）、辣度／加料／備註 30px、其餘資訊 22px、「全單」標題 36px、訂單編號／桌號 32px。實作見 `wwwroot/dev/passprnt-test.html` 的 `ticketHtml`、`itemRow`、`detailRow`。
-- **尚未回報（下次實測補問）**：
-  1. Safari 是否每次跳「是否在 PassPRNT 中打開」確認視窗
-  2. 印完回來是**同一分頁**還是**開新分頁**（測試頁會自動判斷顯示）
-  3. 「加入主畫面」模式下 1、2 項是否改善
-  - 第 1、2 點影響 v5 的流程設計（例如回呼後如何標記 `IsPrinted`），可先撰寫 v5 其餘部分，此處留待確認。
-- **下一步**：撰寫 `docs/prd/v5.md`（出單改為 PassPRNT 的規格：採用上述 58mm 版面與字級、確認出單／結帳補印／補印的流程、失敗處理），使用者確認後再改寫 `OrderController` 列印流程與 `Views/Order/Details.cshtml`；`LanReceiptPrinterService` 屆時移除或保留備用。
+- **規格**：`docs/prd/v5.md`（2026-10-04 定案）。重點：58mm 紙（`size=2`）、結帳不補印且有待出單品項時擋下結帳、列印失敗一律人工重按「確認訂單」、出單不印單價／小計、舊 LAN 直連程式已移除。
+- **硬體**：Star mC-Print3 **MCP31L BK TC**，USB 線接 iPad 的印表機 USB-A（2.4A）孔；印表機與 PassPRNT App 紙寬須設為 58mm。
+- **實作（2026-10-04）**：確認訂單／補印 → `Views/Order/Print.cshtml` 開啟 PassPRNT → 回呼 `PrintResult`（GET）→ 成功時 `PrintSucceeded.cshtml` 自動 POST `MarkPrinted` 標記送印當下的品項。出單版面在 `Views/Order/_Ticket.cshtml`。
+- **已實測**：中文正常、自動切紙、印完回到同一分頁；Safari 每次都會跳 PassPRNT 確認視窗（iOS 限制，無法關閉）。
+- **實機測試（2026-10-04）**：使用者以 iPad + 實體印表機測試新流程，回報**測試通過**。
+  - 伺服器日誌：訂單 #2 出單兩次回報 `0 SUCCESS`；`PrintResult` 需登入才會執行並記錄，證實從 PassPRNT 回到網站時**登入狀態仍在**（`SameSite=Strict` 不影響）。
+  - 過程中曾出現 PassPRNT `E004 device connection error`（回呼代碼 `4`、`ERROR_GETPORT_FAILURE`）：PassPRNT 連不到印表機，處理印表機連線後即正常；系統依規格顯示出單失敗、品項維持待出單。
+- **尚未特別驗證（非必要，有機會再測）**：
+  1. 15 項以上的大單能否正常列印（出單 HTML 放在網址中，過長可能失敗）。
+  2. 「加入主畫面」模式下是否仍跳確認視窗。
+  3. 實際缺紙時的畫面（模擬回呼已驗證會顯示失敗）。
 - **已決議**：作廢訂單不列印（店長在原出單手動打叉），見 2026-09-30 紀錄。
+
+### 下一步建議
+
+- 出單模組已完成，接著處理下方「Review 待辦」中標記上線前的項目（OrderController 測試、列表分頁、訂位刪除、隱私權政策聯絡資訊），以及租用 VPS／網域與正式部署。
 
 ### Review 待辦（2026-09-29 全專案 review 後尚未處理）
 
-- 低 1：補 `OrderController` 測試（金額計算、狀態轉換、客製化驗證）——建議上線前完成。
+- 低 1：補 `OrderController` 測試（金額計算、狀態轉換、客製化驗證）——建議上線前完成。（出單判斷邏輯已抽到 `Services/OrderTicket.cs` 並有測試）
 - 低 2：`DailyNumber` 與 `TotalAmount` 併發競態——單店機率低，先觀察。
 - 低 4：營收報表品項排行未計入加料金額——**待使用者決定**：計入或於畫面註明。
 - 低 5：訂單／支出列表無分頁或預設日期範圍——上線前處理。
@@ -45,9 +41,41 @@
 ### 環境備註
 
 - 新電腦：`git clone` → `docker compose up -d --build` → `sh scripts/dev-data/import-menu-seed.sh`（匯入測試菜單）。開發帳號 admin / 123。
+- 本機若只有舊版 .NET SDK（Mac 那台為 7.0），可用 Docker 執行建置與測試：`docker run --rm -v "$PWD":/src -w /src mcr.microsoft.com/dotnet/sdk:9.0 dotnet test tests/ManTingEats.Tests`
 - 首次啟動若 web 的 Migration 因 MySQL 尚在初始化而失敗，`docker compose restart web` 即可。
 - 若本機已裝 MySQL 佔用 3306（Mac 那台即是），需先到「系統設定 → MySQL」停用，否則 db 容器無法啟動。
 - GitHub repo 為**公開**，不得 commit 真實資料或機密。
+
+---
+
+### [2026-10-04] 出單列印改為 iPad + PassPRNT，移除 LAN 直連印表機
+
+**變更內容**
+
+- 新增 `docs/prd/v5.md`（已定案），取代 v3 的連線方式、結帳補印與失敗處理。
+- `OrderController`：
+  - `ConfirmPrint`／`Reprint` 不再由伺服器列印，改回傳 `Print` 頁面，由前端開啟 `starpassprnt://` 列印。
+  - 新增 `PrintResult`（GET，接收 `passprnt_code`／`passprnt_message`）與 `MarkPrinted`（POST，含 Anti-Forgery），只標記送印當下記錄的品項 ID。
+  - `Checkout` 移除結帳前自動補印，改為有待出單品項時擋下結帳。
+  - 列印結果寫入應用程式日誌。
+- 新增 `Views/Order/Print.cshtml`、`PrintSucceeded.cshtml`、`_Ticket.cshtml`（58mm 出單版面，字級同測試頁定案值，不印單價／小計），`Models/PrintTicketViewModel.cs`、`PrintSucceededViewModel.cs`。
+- 新增 `Services/OrderTicket.cs`（待出單判斷、全單／加點判斷、標記已出單、品項 ID 序列化）與 `tests/ManTingEats.Tests/OrderTicketTests.cs`。
+- `Views/Order/Details.cshtml`：有待出單品項時停用結帳按鈕並顯示提示。
+- 移除 `LanReceiptPrinterService`、`IReceiptPrinterService`、`PrinterOptions`、`appsettings*.json` 的 `Printer` 區塊、Big5 編碼註冊與 `System.Text.Encoding.CodePages` 套件。
+
+**決策原因**
+
+- 主機將在雲端、店內無法讓印表機上網，伺服器無法直連印表機；改由接著印表機的 iPad 透過 PassPRNT 列印，並以回呼得知成功與否。
+- 使用者決議：結帳不補印（以每次確認訂單的出單為準，加點單底部印累加總金額）；未成功一律人工重印；出單不印單價。
+- 回呼為 GET，為避免 GET 修改資料，改由自動送出的 POST 標記已出單。
+- 只標記送印當下的品項 ID，避免列印期間加點的品項被誤標為已出單。
+- 出單時間改用 `TaipeiTime.Now`（舊程式用 `DateTime.Now`，在 UTC 容器中會差 8 小時）。
+
+**驗證結果**
+
+- 以 Docker 內 .NET 9 SDK `dotnet build` 成功，`dotnet test` 27 項全數通過（新增 7 項）。
+- 本機以 curl 走完整流程：待出單時結帳被擋、全單內容正確（含辣度／加料／備註，備註中的 HTML 被編碼）、失敗回呼顯示警告且品項維持待出單、成功回呼標記已出單、加點單僅列新品項且總金額累加、補印不改變出單狀態、未帶 Anti-Forgery Token 的 `MarkPrinted` 回 400。
+- iPad + 實體印表機實機測試通過（使用者回報；伺服器日誌兩次 `SUCCESS`，回呼時登入狀態保留）。測試中的 `E004`（`ERROR_GETPORT_FAILURE`）為印表機連線問題，處理後正常。
 
 ---
 
@@ -70,7 +98,7 @@
 **驗證結果**
 
 - 使用者以 iPad + PassPRNT 實測：時間那行完整印出、會自動切紙，最終字級已確認可用。
-- Safari 確認視窗、是否開新分頁兩項尚未回報。
+- Safari 每次跳確認視窗、印完回到同一分頁（使用者回報）；「加入主畫面」模式尚未測。
 - 測試完成後已移除 Cloudflare 快速通道容器。
 
 ---
