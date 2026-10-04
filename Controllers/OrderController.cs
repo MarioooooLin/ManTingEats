@@ -376,7 +376,7 @@ public sealed class OrderController : Controller
 
     [HttpPost]
     [ValidateAntiForgeryToken]
-    public async Task<IActionResult> Checkout(int id)
+    public async Task<IActionResult> Checkout(int id, decimal? receivedAmount)
     {
         var order = await _db.Orders
             .Include(o => o.Items)
@@ -403,10 +403,19 @@ public sealed class OrderController : Controller
             return RedirectToAction(nameof(Details), new { id });
         }
 
+        // 收款金額只用來檢查與算找零，不存資料庫（v6 決議）；後端仍需檢查，防止繞過結帳視窗直接送出
+        var paymentError = CashPayment.Validate(receivedAmount, order.TotalAmount);
+        if (paymentError is not null)
+        {
+            TempData["Error"] = paymentError;
+            return RedirectToAction(nameof(Details), new { id });
+        }
+
         order.Status = OrderStatus.Completed;
         order.CompletedAt = DateTime.UtcNow;
         await _db.SaveChangesAsync();
-        TempData["Success"] = "結帳完成。";
+        // 找零放在成功訊息中，店長找錢時可再看一次
+        TempData["Success"] = $"結帳完成，收 ${receivedAmount!.Value:F0}，找零 ${receivedAmount.Value - order.TotalAmount:F0}。";
 
         return RedirectToAction(nameof(Details), new { id });
     }

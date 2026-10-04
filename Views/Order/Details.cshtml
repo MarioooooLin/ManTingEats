@@ -276,13 +276,55 @@
 
     @* 結帳不補印（v5）：仍有待出單品項時先擋下，提示先出單；後端 Checkout 也會再檢查一次 *@
     var unprintedCount = order.Items.Count(i => !i.IsPrinted);
-    <form asp-action="Checkout" asp-route-id="@order.Id" method="post" class="mb-4" onsubmit="return confirm('確定要結帳嗎？結帳後將無法再加點。');">
-        <button type="submit" class="btn btn-success btn-lg" @(order.Items.Count == 0 || unprintedCount > 0 ? "disabled" : "")>結帳（應收 $@order.TotalAmount.ToString("F2")）</button>
+    var totalText = order.TotalAmount.ToString("F0");
+    <div class="mb-4">
+        @* 結帳視窗本身就是確認步驟，取代原本的 confirm 對話框 *@
+        <button type="button" class="btn btn-success btn-lg" data-bs-toggle="modal" data-bs-target="#checkoutModal" @(order.Items.Count == 0 || unprintedCount > 0 ? "disabled" : "")>結帳（應收 $@order.TotalAmount.ToString("F2")）</button>
         @if (unprintedCount > 0)
         {
             <div class="text-muted small mt-1">尚有 @unprintedCount 項未出單，請先確認訂單或移除這些品項。</div>
         }
-    </form>
+    </div>
+
+    @* 結帳收款（v6）：必須「收剛好」或輸入收款金額才能結帳；收款金額只用來算找零，不存資料庫 *@
+    <div class="modal fade" id="checkoutModal" tabindex="-1" aria-labelledby="checkoutModalTitle" aria-hidden="true">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="checkoutModalTitle">結帳 — 訂單 #@order.DailyNumber</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="關閉"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="text-center mb-3">
+                        <div class="text-muted">應收</div>
+                        <div class="display-5 fw-bold text-brand">$@totalText</div>
+                        <div class="text-muted small">結帳後將無法再加點</div>
+                    </div>
+
+                    <form asp-action="Checkout" asp-route-id="@order.Id" method="post">
+                        <input type="hidden" name="receivedAmount" value="@totalText" />
+                        <button type="submit" class="btn btn-success btn-lg w-100">收剛好，直接結帳</button>
+                    </form>
+
+                    <hr />
+
+                    <form asp-action="Checkout" asp-route-id="@order.Id" method="post" id="cashForm" data-total="@totalText">
+                        <label for="receivedAmount" class="form-label">或輸入收到的金額</label>
+                        <div class="d-flex flex-wrap gap-2 mb-2">
+                            @foreach (var amount in ManTingEats.Services.CashPayment.QuickAmounts(order.TotalAmount))
+                            {
+                                <button type="button" class="btn btn-outline-primary btn-lg flex-fill quick-amount" data-amount="@amount.ToString("F0")">$@amount.ToString("F0")</button>
+                            }
+                        </div>
+                        <input type="number" inputmode="numeric" name="receivedAmount" id="receivedAmount" class="form-control form-control-lg"
+                               min="@totalText" max="@ManTingEats.Services.CashPayment.MaxReceivedAmount.ToString("F0")" step="1" placeholder="收到金額" required />
+                        <div id="changeDisplay" class="fs-3 fw-bold text-center mt-3 text-muted">請選擇或輸入金額</div>
+                        <button type="submit" id="btnConfirmCheckout" class="btn btn-primary btn-lg w-100 mt-3" disabled>確認結帳</button>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
 }
 
 @if (order.Status == OrderStatus.Completed || (order.Status == OrderStatus.Open && order.Items.Any(i => i.IsPrinted)))
@@ -319,6 +361,54 @@
 
 @section Scripts {
     <script>
+        // 結帳收款：即時顯示找零；金額不足時停用「確認結帳」（後端 Checkout 也會再檢查）
+        (function () {
+            var cashForm = document.getElementById('cashForm');
+            if (!cashForm) {
+                return;
+            }
+            var total = parseInt(cashForm.dataset.total, 10);
+            var input = document.getElementById('receivedAmount');
+            var display = document.getElementById('changeDisplay');
+            var confirmButton = document.getElementById('btnConfirmCheckout');
+
+            function updateChange() {
+                var received = parseInt(input.value, 10);
+                if (isNaN(received)) {
+                    display.className = 'fs-3 fw-bold text-center mt-3 text-muted';
+                    display.textContent = '請選擇或輸入金額';
+                    confirmButton.disabled = true;
+                } else if (received < total) {
+                    display.className = 'fs-3 fw-bold text-center mt-3 text-danger';
+                    display.textContent = '還差 $' + (total - received);
+                    confirmButton.disabled = true;
+                } else {
+                    display.className = 'fs-3 fw-bold text-center mt-3 text-success';
+                    display.textContent = '找零 $' + (received - total);
+                    confirmButton.disabled = false;
+                }
+            }
+
+            input.addEventListener('input', updateChange);
+            cashForm.querySelectorAll('.quick-amount').forEach(function (btn) {
+                btn.addEventListener('click', function () {
+                    input.value = this.dataset.amount;
+                    updateChange();
+                });
+            });
+            // 防止連點送出兩次：第二次會因訂單已結帳而顯示錯誤，蓋掉含找零的成功訊息
+            document.querySelectorAll('#checkoutModal form').forEach(function (form) {
+                form.addEventListener('submit', function () {
+                    form.querySelector('[type="submit"]').disabled = true;
+                });
+            });
+            // 每次打開結帳視窗都從空白開始，避免沿用上次輸入的金額
+            document.getElementById('checkoutModal').addEventListener('show.bs.modal', function () {
+                input.value = '';
+                updateChange();
+            });
+        })();
+
         document.querySelectorAll('.menu-item-card').forEach(function (btn) {
             btn.addEventListener('click', function () {
                 var isCustomized = this.dataset.supportsAddons === 'true' || this.dataset.supportsSpice === 'true';
