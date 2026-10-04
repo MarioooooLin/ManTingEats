@@ -274,8 +274,14 @@
         </div>
     </div>
 
+    @* 結帳不補印（v5）：仍有待出單品項時先擋下，提示先出單；後端 Checkout 也會再檢查一次 *@
+    var unprintedCount = order.Items.Count(i => !i.IsPrinted);
     <form asp-action="Checkout" asp-route-id="@order.Id" method="post" class="mb-4" onsubmit="return confirm('確定要結帳嗎？結帳後將無法再加點。');">
-        <button type="submit" class="btn btn-success btn-lg" @(order.Items.Count == 0 ? "disabled" : "")>結帳（應收 $@order.TotalAmount.ToString("F2")）</button>
+        <button type="submit" class="btn btn-success btn-lg" @(order.Items.Count == 0 || unprintedCount > 0 ? "disabled" : "")>結帳（應收 $@order.TotalAmount.ToString("F2")）</button>
+        @if (unprintedCount > 0)
+        {
+            <div class="text-muted small mt-1">尚有 @unprintedCount 項未出單，請先確認訂單或移除這些品項。</div>
+        }
     </form>
 }
 

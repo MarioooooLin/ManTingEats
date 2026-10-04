@@ -1,0 +1,46 @@
+@model ManTingEats.Models.PrintTicketViewModel
+@{
+    ViewData["Title"] = $"出單 #{Model.Order.DailyNumber}";
+}
+
+<div class="card mb-4">
+    <div class="card-body text-center py-5">
+        <h1 class="h3 mb-3">🖨️ 正在開啟 PassPRNT 出單…</h1>
+        <p class="text-muted mb-4">
+            訂單 #@Model.Order.DailyNumber（@Model.Title.Replace("　", "")，@Model.Items.Count 項）<br />
+            Safari 跳出「是否在 PassPRNT 中打開」時請按「打開」。
+        </p>
+        <p class="text-muted small mb-4">若沒有開啟（例如按了取消），品項仍維持「待出單」，可按下方按鈕重試。</p>
+        <button type="button" id="btnPrint" class="btn btn-primary btn-lg mb-2">重新開啟 PassPRNT</button>
+        <div>
+            <a asp-action="Details" asp-route-id="@Model.Order.Id" class="btn btn-outline-secondary">回訂單（不出單）</a>
+        </div>
+    </div>
+</div>
+
+@* 出單內容放在 template 中不會顯示在畫面上，只供下方腳本取出 HTML 交給 PassPRNT *@
+<template id="ticketTemplate"><partial name="_Ticket" model="Model" /></template>
+
+@section Scripts {
+    <script>
+        (function () {
+            var ticketHtml = '<html><head><meta charset="utf-8"></head><body style="margin:0;">'
+                + document.getElementById('ticketTemplate').innerHTML
+                + '</body></html>';
+            // 回呼網址以目前網域組成，經 Cloudflare／Caddy 等反向代理時仍會回到使用者實際連線的網址
+            var back = location.origin + '@Html.Raw(System.Text.Encodings.Web.JavaScriptEncoder.Default.Encode(Model.ResultPath))';
+
+            function openPassPrnt() {
+                location.href = 'starpassprnt://v1/print/nopreview?'
+                    + 'back=' + encodeURIComponent(back)
+                    + '&html=' + encodeURIComponent(ticketHtml)
+                    + '&size=2'          // 2 吋（58mm）：店內紙寬約 6 公分，設成 3 吋會依 80mm 排版導致右側被裁切
+                    + '&cut=partial'     // 印完自動半切
+                    + '&popup=enable';   // 錯誤時由 PassPRNT 跳出訊息
+            }
+
+            document.getElementById('btnPrint').addEventListener('click', openPassPrnt);
+            openPassPrnt();
+        })();
+    </script>
+}

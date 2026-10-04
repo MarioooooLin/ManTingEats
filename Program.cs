@@ -1,18 +1,13 @@
-using System.Text;
 using System.Threading.RateLimiting;
 using ManTingEats.Controllers;
 using ManTingEats.Data;
 using ManTingEats.Models.Entities;
-using ManTingEats.Models.Options;
 using ManTingEats.Services;
 using Microsoft.AspNetCore.Authentication.Cookies;
 using Microsoft.AspNetCore.DataProtection;
 using Microsoft.AspNetCore.HttpOverrides;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
-
-// 印表機字元模式為 Big5（代碼頁 950），.NET 預設不內建此編碼，需先註冊提供者
-Encoding.RegisterProvider(CodePagesEncodingProvider.Instance);
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -46,9 +41,6 @@ builder.Services.AddDbContext<AppDbContext>(options =>
 
 builder.Services.AddScoped<IPasswordHasher<Employee>, PasswordHasher<Employee>>();
 builder.Services.AddMemoryCache();
-
-builder.Services.Configure<PrinterOptions>(builder.Configuration.GetSection(PrinterOptions.SectionName));
-builder.Services.AddSingleton<IReceiptPrinterService, LanReceiptPrinterService>();
 
 builder.Services.AddAuthentication(CookieAuthenticationDefaults.AuthenticationScheme)
     .AddCookie(options =>

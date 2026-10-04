@@ -1,0 +1,45 @@
+@model ManTingEats.Models.PrintTicketViewModel
+@*
+    58mm 出單版面（PassPRNT 會把這段 HTML 轉成圖片列印）。
+    字級為 2026-10-04 實機確認的結果，見 docs/prd/v5.md 第 4 節；PassPRNT 不吃外部 CSS，因此全部寫成 inline style。
+    品名、備註等文字經 Razor 編碼，店員輸入的內容不會被當成 HTML 解析。
+*@
+@{
+    var order = Model.Order;
+}
+<div style="font-family:-apple-system,'PingFang TC',sans-serif;font-size:22px;padding:4px;word-break:break-all;">
+    <div style="text-align:center;font-size:36px;font-weight:bold;border-top:4px solid #000;border-bottom:4px solid #000;padding:6px 0;">@Model.Title</div>
+    <table style="width:100%;font-size:22px;margin-top:6px;border-collapse:collapse;">
+        <tr><td>訂單編號</td><td style="text-align:right;font-size:32px;font-weight:bold;">#@order.DailyNumber</td></tr>
+        <tr><td>通路</td><td style="text-align:right;">@order.Channel.ToDisplayText()</td></tr>
+        <tr><td>桌號</td><td style="text-align:right;font-size:32px;font-weight:bold;">@(order.TableNumber ?? "-")</td></tr>
+        <tr><td>時間</td><td style="text-align:right;">@Model.PrintedAt.ToString("yyyy/MM/dd HH:mm")</td></tr>
+    </table>
+    <hr style="border:0;border-top:2px dashed #000;">
+    @foreach (var item in Model.Items)
+    {
+        @* 數量固定靠右、品名過長在左欄換行，避免數量被擠出紙外 *@
+        <table style="width:100%;font-size:36px;font-weight:bold;border-collapse:collapse;margin-top:8px;">
+            <tr>
+                <td style="vertical-align:top;line-height:1.2;">@item.MenuItem?.Name</td>
+                <td style="width:2.4em;text-align:right;vertical-align:top;white-space:nowrap;">x@(item.Quantity)</td>
+            </tr>
+        </table>
+        @if (item.SpiceLevel is not null)
+        {
+            <div style="font-size:30px;line-height:1.3;padding-left:16px;">辣度：@item.SpiceLevel.Value.ToDisplayText()</div>
+        }
+        @if (item.AddOns.Count > 0)
+        {
+            <div style="font-size:30px;line-height:1.3;padding-left:16px;">加料：@string.Join("、", item.AddOns.Select(a => $"{a.AddOnName} x{a.Quantity}"))</div>
+        }
+        @if (!string.IsNullOrWhiteSpace(item.Note))
+        {
+            <div style="font-size:30px;line-height:1.3;padding-left:16px;">備註：@item.Note</div>
+        }
+    }
+    <hr style="border:0;border-top:2px dashed #000;">
+    <table style="width:100%;font-size:26px;border-collapse:collapse;">
+        <tr><td>@Model.TotalLabel</td><td style="text-align:right;font-weight:bold;">$@order.TotalAmount.ToString("F0")</td></tr>
+    </table>
+</div>

@@ -1,0 +1,25 @@
+@model ManTingEats.Models.PrintSucceededViewModel
+@{
+    ViewData["Title"] = "出單成功";
+}
+
+@*
+    PassPRNT 印完以 GET 回到站內；為了不在 GET 中修改資料，這裡改以帶 Anti-Forgery Token 的 POST 標記已出單。
+    頁面載入即自動送出，店員不需多按；腳本被停用時仍可手動按鈕送出。
+*@
+<div class="card mb-4">
+    <div class="card-body text-center py-5">
+        <h1 class="h3 mb-3">✅ 已印出，正在更新出單狀態…</h1>
+        <form id="markPrintedForm" asp-action="MarkPrinted" method="post">
+            <input type="hidden" name="orderId" value="@Model.OrderId" />
+            <input type="hidden" name="items" value="@Model.Items" />
+            <button type="submit" class="btn btn-primary">若沒有自動跳轉，請按這裡</button>
+        </form>
+    </div>
+</div>
+
+@section Scripts {
+    <script>
+        document.getElementById('markPrintedForm').submit();
+    </script>
+}

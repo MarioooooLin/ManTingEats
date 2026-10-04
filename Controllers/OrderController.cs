@@ -15,12 +15,12 @@ namespace ManTingEats.Controllers;
 public sealed class OrderController : Controller
 {
     private readonly AppDbContext _db;
-    private readonly IReceiptPrinterService _printer;
+    private readonly ILogger<OrderController> _logger;
 
-    public OrderController(AppDbContext db, IReceiptPrinterService printer)
+    public OrderController(AppDbContext db, ILogger<OrderController> logger)
     {
         _db = db;
-        _printer = printer;
+        _logger = logger;
     }
 
     private int CurrentEmployeeId => int.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier)!);
@@ -219,54 +219,87 @@ public sealed class OrderController : Controller
             return NotFound();
         }
 
-        // 確認出單僅限未結帳訂單；結帳時已由 Checkout 補印，作廢訂單則不應再送廚房
+        // 確認出單僅限未結帳訂單；結帳前必須先出完單，作廢訂單則不應再送廚房
         if (order.Status != OrderStatus.Open)
         {
             TempData["Error"] = "訂單已鎖定，無法出單。";
             return RedirectToAction(nameof(Details), new { id = orderId });
         }
 
-        var printed = await TryPrintPendingItemsAsync(order);
-        if (printed is null)
+        var pendingItems = OrderTicket.PendingItems(order);
+        if (pendingItems.Count == 0)
         {
             TempData["Error"] = "目前沒有尚未出單的品項。";
+            return RedirectToAction(nameof(Details), new { id = orderId });
         }
-        else if (printed == true)
+
+        // 此處只產生出單內容、不標記已出單：要等 PassPRNT 回報成功（PrintResult → MarkPrinted）才算數
+        var isFirstBatch = OrderTicket.IsFirstBatch(order);
+        return View("Print", new PrintTicketViewModel
         {
-            await _db.SaveChangesAsync();
-            TempData["Success"] = "已出單。";
+            Order = order,
+            Title = isFirstBatch ? "全　單" : "加　點",
+            Items = isFirstBatch ? order.Items.ToList() : pendingItems,
+            TotalLabel = isFirstBatch ? "總金額" : "訂單目前總金額",
+            PrintedAt = TaipeiTime.Now,
+            ResultPath = Url.Action(nameof(PrintResult), new { orderId, items = OrderTicket.FormatItemIds(pendingItems) })!
+        });
+    }
+
+    /// <summary>
+    /// PassPRNT 印完後回到此處（GET），帶回 passprnt_code（0 = 成功）與 passprnt_message。
+    /// items 為送印當下的待出單品項 ID；補印時為空，成功與否都不改變出單狀態。
+    /// </summary>
+    [HttpGet]
+    public IActionResult PrintResult(
+        int orderId,
+        string? items,
+        [FromQuery(Name = "passprnt_code")] string? printCode,
+        [FromQuery(Name = "passprnt_message")] string? printMessage)
+    {
+        var isReprint = string.IsNullOrEmpty(items);
+        var succeeded = printCode == "0";
+        _logger.LogInformation("訂單 {OrderId} {TicketKind}列印結果：代碼 {Code}，訊息 {Message}",
+            orderId, isReprint ? "補印" : "出單", printCode, printMessage);
+
+        if (succeeded && !isReprint)
+        {
+            return View("PrintSucceeded", new PrintSucceededViewModel(orderId, items!));
+        }
+
+        if (succeeded)
+        {
+            TempData["Success"] = "已補印。";
         }
         else
         {
-            TempData["Warning"] = "⬆ 出單失敗，請確認印表機後重新按「確認出單」。";
+            // 定案決議：只要不是成功一律視為未出單，由店長處理印表機後人工重印（v5 第 6 節）
+            var reason = string.IsNullOrWhiteSpace(printMessage) ? $"代碼 {printCode}" : printMessage;
+            TempData["Warning"] = isReprint
+                ? $"⬆ 補印失敗（{reason}），請確認印表機後再按「補印出單」。"
+                : $"⬆ 出單失敗（{reason}），請確認印表機（紙張、電源、USB）後重新按「確認訂單」。";
         }
 
         return RedirectToAction(nameof(Details), new { id = orderId });
     }
 
-    /// <summary>將尚未出單的品項批次列印（首次列為全單，之後列為加點單）；true=列印成功並已標記，false=列印失敗，null=無待出單品項。不負責儲存，調用端需自行 SaveChangesAsync。</summary>
-    private async Task<bool?> TryPrintPendingItemsAsync(Order order)
+    [HttpPost]
+    [ValidateAntiForgeryToken]
+    public async Task<IActionResult> MarkPrinted(int orderId, string? items)
     {
-        var pendingItems = order.Items.Where(i => !i.IsPrinted).ToList();
-        if (pendingItems.Count == 0)
+        var order = await _db.Orders
+            .Include(o => o.Items)
+            .SingleOrDefaultAsync(o => o.Id == orderId);
+        if (order is null)
         {
-            return null;
+            return NotFound();
         }
 
-        var isFirstBatch = pendingItems.Count == order.Items.Count;
-        var printed = isFirstBatch
-            ? await _printer.PrintNewOrderAsync(order)
-            : await _printer.PrintAddedItemsAsync(order, pendingItems);
-
-        if (printed)
-        {
-            foreach (var item in pendingItems)
-            {
-                item.IsPrinted = true;
-            }
-        }
-
-        return printed;
+        // 不檢查訂單狀態：紙本已實際印出，出單狀態應如實反映
+        OrderTicket.MarkPrinted(order, OrderTicket.ParseItemIds(items));
+        await _db.SaveChangesAsync();
+        TempData["Success"] = "已出單。";
+        return RedirectToAction(nameof(Details), new { id = orderId });
     }
 
     [HttpPost]
@@ -362,18 +395,18 @@ public sealed class OrderController : Controller
             return RedirectToAction(nameof(Details), new { id });
         }
 
-        // 安全網：若結帳前仍有忘記確認出單的品項，結帳時一併補列印，避免廚房漏單
-        var printResult = await TryPrintPendingItemsAsync(order);
+        // 結帳不補印（v5 決議）：待出單品項代表廚房從未收到，必須先出單或取消，避免漏做卻照收錢
+        var pendingCount = OrderTicket.PendingItems(order).Count;
+        if (pendingCount > 0)
+        {
+            TempData["Error"] = $"尚有 {pendingCount} 項未出單，請先確認訂單或取消這些品項。";
+            return RedirectToAction(nameof(Details), new { id });
+        }
 
         order.Status = OrderStatus.Completed;
         order.CompletedAt = DateTime.UtcNow;
         await _db.SaveChangesAsync();
         TempData["Success"] = "結帳完成。";
-
-        if (printResult == false)
-        {
-            TempData["Warning"] = "⬆ 結帳前仍有品項未出單且列印失敗，請確認印表機並使用「補印」。";
-        }
 
         return RedirectToAction(nameof(Details), new { id });
     }
@@ -432,8 +465,15 @@ public sealed class OrderController : Controller
             return RedirectToAction(nameof(Details), new { id });
         }
 
-        var printed = await _printer.PrintNewOrderAsync(order);
-        TempData[printed ? "Success" : "Warning"] = printed ? "已重新列印全單。" : "⬆ 補印失敗，請確認印表機。";
-        return RedirectToAction(nameof(Details), new { id });
+        // 補印只是重印一張紙，不改變任何品項的出單狀態，因此回呼網址不帶品項 ID
+        return View("Print", new PrintTicketViewModel
+        {
+            Order = order,
+            Title = "補　印",
+            Items = order.Items.ToList(),
+            TotalLabel = "總金額",
+            PrintedAt = TaipeiTime.Now,
+            ResultPath = Url.Action(nameof(PrintResult), new { orderId = order.Id })!
+        });
     }
 }
