@@ -37,14 +37,4 @@ public static class EnumDisplayExtensions
         MenuCategory.Other => "其他",
         _ => category.ToString()
     };
-
-    public static string ToDisplayText(this SpiceLevel level) => level switch
-    {
-        SpiceLevel.None => "不辣",
-        SpiceLevel.Mild => "微辣",
-        SpiceLevel.Medium => "小辣",
-        SpiceLevel.Hot => "中辣",
-        SpiceLevel.ExtraHot => "大辣",
-        _ => level.ToString()
-    };
 }

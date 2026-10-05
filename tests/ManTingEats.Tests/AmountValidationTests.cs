@@ -83,6 +83,16 @@ public class AmountValidationTests
     }
 
     [Theory]
+    [InlineData(0, true)]
+    [InlineData(6, true)]
+    [InlineData(-1, false)]
+    [InlineData(7, false)]
+    public void SpiceLevel_ZeroToSix(int spiceLevel, bool expectedValid)
+    {
+        Assert.Equal(expectedValid, Validate(new AddOrderItemCommand(1, 1, SpiceLevel: spiceLevel)).Count == 0);
+    }
+
+    [Theory]
     [InlineData(50, true)]
     [InlineData(51, false)]
     public void ReservationPartySize_Limits(int partySize, bool expectedValid)

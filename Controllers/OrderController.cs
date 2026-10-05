@@ -169,7 +169,7 @@ public sealed class OrderController : Controller
             UnitPrice = menuItem.Price,
             Quantity = isCustomized ? 1 : command.Quantity,
             Note = command.Note,
-            SpiceLevel = menuItem.SupportsSpiceLevel ? (command.SpiceLevel ?? Models.Enums.SpiceLevel.Mild) : null
+            SpiceLevel = menuItem.SupportsSpiceLevel ? (command.SpiceLevel ?? OrderLimits.DefaultSpiceLevel) : null
         };
 
         if (menuItem.SupportsAddOns && command.AddOns is { Count: > 0 })

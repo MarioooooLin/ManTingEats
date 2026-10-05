@@ -61,7 +61,7 @@
                         @item.MenuItem?.Name
                         @if (item.SpiceLevel is not null)
                         {
-                            <div class="text-muted small">辣度：@item.SpiceLevel.Value.ToDisplayText()</div>
+                            <div class="text-muted small">辣度：@item.SpiceLevel</div>
                         }
                         @if (item.AddOns.Count > 0)
                         {
@@ -197,11 +197,11 @@
                                 <div class="mb-3" id="spiceSection">
                                     <label class="form-label">辣度</label>
                                     <div class="btn-group w-100 spice-btn-group" role="group">
-                                        @foreach (var level in Enum.GetValues<SpiceLevel>())
+                                        @for (var level = ManTingEats.Models.Commands.OrderLimits.MinSpiceLevel; level <= ManTingEats.Models.Commands.OrderLimits.MaxSpiceLevel; level++)
                                         {
                                             var inputId = $"spice-{level}";
-                                            <input type="radio" class="btn-check" name="SpiceLevel" id="@inputId" value="@level" autocomplete="off" @(level == SpiceLevel.Mild ? "checked" : "") />
-                                            <label class="btn btn-outline-secondary spice-btn" for="@inputId">@level.ToDisplayText()</label>
+                                            <input type="radio" class="btn-check" name="SpiceLevel" id="@inputId" value="@level" autocomplete="off" @(level == ManTingEats.Models.Commands.OrderLimits.DefaultSpiceLevel ? "checked" : "") />
+                                            <label class="btn btn-outline-secondary spice-btn" for="@inputId">@level</label>
                                         }
                                     </div>
                                 </div>
@@ -425,7 +425,7 @@
                         cb.closest('.addon-row').querySelector('.addon-qty-stepper').style.display = 'none';
                         cb.closest('.addon-row').querySelector('.addon-qty-input').value = 1;
                     });
-                    var firstSpice = form.querySelector('input[name="SpiceLevel"][value="Mild"]');
+                    var firstSpice = form.querySelector('input[name="SpiceLevel"][value="@ManTingEats.Models.Commands.OrderLimits.DefaultSpiceLevel"]');
                     if (firstSpice) { firstSpice.checked = true; }
 
                     updateCustomizeSubtotal(parseFloat(this.dataset.price));

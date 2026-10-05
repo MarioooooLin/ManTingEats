@@ -1,5 +1,3 @@
-using ManTingEats.Models.Enums;
-
 namespace ManTingEats.Models.Entities;
 
 public sealed class OrderItem
@@ -18,8 +16,8 @@ public sealed class OrderItem
     /// <summary>客製化品項（有加料或辣度）恆為 1，多份需分行加點，避免計價/出單歧義。</summary>
     public int Quantity { get; set; }
 
-    /// <summary>僅品項開放辣度時使用，null 代表非客製化品項。</summary>
-    public SpiceLevel? SpiceLevel { get; set; }
+    /// <summary>辣度 0～6，僅品項開放辣度時使用，null 代表該品項不可調辣度。原為五級列舉，改為 int 後資料庫欄位型別不變。</summary>
+    public int? SpiceLevel { get; set; }
 
     /// <summary>給廚房看的單項備註（例：少辣、不要葱），選填。</summary>
     public string? Note { get; set; }
