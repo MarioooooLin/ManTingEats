@@ -6,7 +6,7 @@
 
 ## 📍 目前進度與下一步（交接用，每次收工前更新）
 
-> 最後更新：2026-10-04。開發者會在公司與家裡兩台電腦間切換，**對話紀錄不會同步**，接手時以本段為準。
+> 最後更新：2026-10-05。開發者會在公司與家裡兩台電腦間切換，**對話紀錄不會同步**，接手時以本段為準。
 
 ### 出單列印改為 iPad + PassPRNT（2026-10-04 實機測試通過）
 
@@ -25,20 +25,23 @@
 
 ### 下一步建議
 
-- 出單模組與結帳找零已完成，接著處理下方「Review 待辦」中標記上線前的項目（OrderController 測試、列表分頁、訂位刪除、隱私權政策聯絡資訊），以及租用 VPS／網域與正式部署。
+- 出單模組與結帳找零已完成，接著處理下方「Review 待辦」中標記上線前的項目（列表分頁、訂位刪除、隱私權政策聯絡資訊），以及租用 VPS／網域與正式部署。
 
 ### 結帳收款與找零（2026-10-04 完成，iPad 實測通過）
 
 - 規格 `docs/prd/v6.md`。結帳改為跳出視窗，須「收剛好」或輸入收款金額（快速金額：下一個整百／$500／$1000 中大於應收者）才能結帳；收款與找零**只在畫面計算，不存資料庫**。
 - 2026-10-04 使用者以 iPad 實測結帳視窗，回報測試通過。
 
-### 待決：跳過 PassPRNT 確認視窗
+### 已結案：跳過 PassPRNT 確認視窗（不可行）
 
-- 網頁端無法關閉（iOS 限制）。唯一可試的是「加入主畫面」模式，但風險是 PassPRNT 回呼可能開回 Safari（與主畫面 App 登入狀態不共用）。可先用 `wwwroot/dev/passprnt-test.html`（已含主畫面 meta）實測：從主畫面圖示開啟後列印，看是否仍跳確認視窗、回來時「主畫面 App 模式」是否為「是」。**2026-10-04 已告知測法，結果尚未回報**；若可行，再於 `_Layout.cshtml` 加上主畫面 App 的 meta 設定。其他替代：Star CloudPRNT（印表機需上網）或自製 iOS App（成本高）。
+- 2026-10-05 使用者在點餐系統暫時加上主畫面 App 的 meta 設定實測：「加入主畫面」後雖全螢幕，但下滑仍見網址、登入狀態與 Safari 共用，**出單仍會跳 PassPRNT 確認視窗**。
+- 同日第二次實測（加上 `manifest.webmanifest`（`display: standalone`）、刪除舊圖示後重新加入主畫面）：**仍跳確認視窗**；且伺服器未收到任何 `PrintResult` 回呼，研判 PassPRNT 印完開回 Safari（未登入而被導到登入頁），主畫面模式反而會讓出單結果無法回寫。
+- 第三次（同一個主畫面圖示、排除印表機 E004 連線問題後）：主畫面 App 中出單**確實不會跳確認視窗**，但 PassPRNT 印完**一律開回 Safari**（iOS 無法讓其他 App 跳回主畫面網頁 App），主畫面 App 停在「正在開啟 PassPRNT」，需手動切回；出單結果只寫入 Safari 的登入狀態。
+- **決議（2026-10-05，使用者選 A）：維持在 Safari 使用、每張單多按一次「打開」**，自動回到訂單頁並記錄出單結果。不採用主畫面 App（每張單需手動切回 App，且需改寫為伺服器端記錄＋輪詢）。實驗用的 meta 與 manifest 皆已移除；iPad 上的主畫面圖示請刪除。
+- 若日後仍要省略，只剩：Star CloudPRNT（印表機需上網、需額外硬體並重寫出單流程）或自製 iOS App（需 Apple 開發者帳號，成本高）。
 
 ### Review 待辦（2026-09-29 全專案 review 後尚未處理）
 
-- 低 1：補 `OrderController` 測試（金額計算、狀態轉換、客製化驗證）——建議上線前完成。（出單判斷邏輯已抽到 `Services/OrderTicket.cs` 並有測試）
 - 低 2：`DailyNumber` 與 `TotalAmount` 併發競態——單店機率低，先觀察。
 - 低 4：營收報表品項排行未計入加料金額——**待使用者決定**：計入或於畫面註明。
 - 低 5：訂單／支出列表無分頁或預設日期範圍——上線前處理。
@@ -51,9 +54,100 @@
 
 - 新電腦：`git clone` → `docker compose up -d --build` → `sh scripts/dev-data/import-menu-seed.sh`（匯入測試菜單）。開發帳號 admin / 123。
 - 本機若只有舊版 .NET SDK（Mac 那台為 7.0），可用 Docker 執行建置與測試：`docker run --rm -v "$PWD":/src -w /src mcr.microsoft.com/dotnet/sdk:9.0 dotnet test tests/ManTingEats.Tests`
+- 開發用 `docker-compose.yml` 未保存 DataProtection 金鑰（正式環境 `docker-compose.prod.yml` 有掛 volume）：每次重建 web 容器，已登入的瀏覽器會被登出，舊頁面送出表單會出現 Anti-Forgery 驗證失敗（400），重新整理／重新登入即可。
 - 首次啟動若 web 的 Migration 因 MySQL 尚在初始化而失敗，`docker compose restart web` 即可。
 - 若本機已裝 MySQL 佔用 3306（Mac 那台即是），需先到「系統設定 → MySQL」停用，否則 db 容器無法啟動。
 - GitHub repo 為**公開**，不得 commit 真實資料或機密。
+
+---
+
+### [2026-10-05] 桌號限制最多 10 個字
+
+**變更內容**
+
+- `OrderLimits` 新增 `MaxTableNumberLength = 4`，`CreateOrderCommand.TableNumber` 長度上限由 20 改為 10（錯誤訊息「桌號最多 10 個字」，數字取自常數）。
+- `Views/Order/Create.cshtml`：桌號輸入框加上 `maxlength`，直接打不進第 11 個字。
+- `AmountValidationTests` 新增桌號長度測試。
+
+**決策原因**
+
+- 使用者實測可輸入 `111111111` 後提出；決議只限制長度、中英數皆可，上限 10 個字（日後可直接改常數）。
+- 資料庫欄位維持 20，放寬上限不需 Migration。
+
+**驗證結果**
+
+- `dotnet test`：79 項全數通過。
+- 本機以 curl 驗證：輸入框有 `maxlength="10"`；送出 11 個字被擋下，10 個字與中文桌號可建立訂單。
+
+---
+
+### [2026-10-05] 辣度改為數字 0～6
+
+**變更內容**
+
+- 移除 `Models/Enums/SpiceLevel.cs`（五級中文辣度）與對應的 `ToDisplayText`。
+- `OrderItem.SpiceLevel`、`AddOrderItemCommand.SpiceLevel` 改為 `int?`；`OrderLimits` 新增 `MinSpiceLevel = 0`、`MaxSpiceLevel = 6`、`DefaultSpiceLevel = 1`，Command 加上 0～6 範圍驗證。
+- 點餐畫面辣度按鈕改為 0～6，預設選 1；訂單詳情與出單改為顯示「辣度：數字」。
+- `docs/prd/v4.md`、`BRIEFING.md`、PassPRNT 測試頁同步改為數字辣度。
+- 測試：`OrderControllerTests` 改用數字辣度，`AmountValidationTests` 新增辣度範圍測試。
+
+**決策原因**
+
+- 使用者要求辣度不用中文，改為 0～6；預設值由使用者選定為 1（沿用原「微辣」的位置）。
+- 原列舉在資料庫本來就存成整數，改為 `int?` 後欄位型別不變，**不需 Migration**（`dotnet ef migrations has-pending-model-changes` 確認無變更）。
+- 已存在的辣度資料（原 0～4 對應不辣～大辣）會直接顯示為數字 0～4；目前尚未上線，只有開發測試資料受影響。
+
+**驗證結果**
+
+- Docker 內 .NET 9 SDK `dotnet test`：74 項全數通過。
+- 本機以 curl 驗證：點餐畫面辣度選項為 0～6 且預設 1；送出辣度 6 正確存檔、未選辣度存為 1、送出 7 被擋下（「辣度需介於 0 到 6」）；出單顯示「辣度：6」「辣度：1」。
+
+---
+
+### [2026-10-05] 出單印出品項與加料金額
+
+**變更內容**
+
+- `Views/Order/_Ticket.cshtml`：
+  - 品項行改為「品名｜數量｜金額」，金額為單價 x 數量，30px 粗體靠右。
+  - 同一品項的所有加料合併一行，右側印加料總價，不加「+」號。
+  - 每種加料以不換行的 span 包住，過長時只在頓號後換行。
+- `docs/prd/v5.md`：修訂第 4 節版面表與第 6 節決議 3（原「不印單價／小計」）。
+
+**決策原因**
+
+- 使用者要求出單上每個品項都要看得到金額。
+- 數量大於 1 印總價、加料只印總價，皆不印單價，節省 58mm 紙寬。
+- 加料名稱先以 `HtmlEncoder` 編碼再組成一行輸出：避免 Razor 排版的換行在頓號前後產生多餘空白，也確保店員輸入的名稱不會被當成 HTML。
+
+**驗證結果**
+
+- 以 headless Chrome 在 384px（58mm 可印寬度）產生示意圖，經使用者確認版面。
+- 本機建立實際訂單，把網站產生的出單 HTML 轉成圖片：品項金額、加料總價（蛋蛋 x5 + 瓜瓜 x6 = $1250）、總金額 $1380 皆正確，換行位置正常。
+- 尚未用 iPad + 印表機實際列印。
+
+---
+
+### [2026-10-05] 補上 OrderController 測試（review 低 1）
+
+**變更內容**
+
+- 測試專案新增 `Microsoft.EntityFrameworkCore.Sqlite` 套件（僅測試使用）。
+- 新增 `tests/ManTingEats.Tests/OrderControllerTestHost.cs`：SQLite 記憶體資料庫＋測試用菜單／加料、已登入使用者、TempData、產生回呼網址的假 `IUrlHelper`；每次動作用新的 DbContext 模擬獨立請求。
+- 新增 `tests/ManTingEats.Tests/OrderControllerTests.cs`（33 項）：
+  - 建立訂單：內用未填桌號、每日流水號遞增、同桌未結帳提醒（含桌號去空白）。
+  - 金額計算與客製化：一般品項小計、客製化數量鎖 1 與加料計價、辣度預設小辣、不支援加料時忽略加料、停用加料／下架品項被擋、改價不影響已點品項、移除品項重算總額。
+  - 狀態轉換：已結帳／作廢訂單不可加點或出單、未出過單取消即作廢、結帳（成功、待出單擋下、未付或金額不足、空訂單、重複結帳）、作廢（記錄原因與操作者、不可重複作廢）。
+  - 出單：全單／加點單內容、確認出單時不先標記、失敗與成功回呼、只標記送印的品項、作廢不可補印、補印不帶品項 ID。
+
+**決策原因**
+
+- 選 SQLite 記憶體資料庫而非 EF InMemory：會檢查外鍵與連動刪除，較接近 MySQL 實際行為，且不需外部資料庫即可在任何電腦執行。
+
+**驗證結果**
+
+- Docker 內 .NET 9 SDK `dotnet test`：70 項全數通過（新增 33 項）。
+- 突變檢查：暫時移除「客製化數量鎖 1」與「待出單擋下結帳」兩條規則，對應測試皆失敗，確認測試有效；檢查後程式已還原。
 
 ---
 
