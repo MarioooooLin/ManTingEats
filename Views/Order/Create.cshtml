@@ -35,7 +35,8 @@
                     </div>
                     <div class="mb-3">
                         <label asp-for="TableNumber" class="form-label">桌號（內用必填）</label>
-                        <input asp-for="TableNumber" class="form-control" />
+                        @* maxlength 讓輸入框直接打不進第 5 個字；後端 CreateOrderCommand 仍會再檢查 *@
+                        <input asp-for="TableNumber" class="form-control" maxlength="@ManTingEats.Models.Commands.OrderLimits.MaxTableNumberLength" />
                         <span asp-validation-for="TableNumber" class="text-danger"></span>
                     </div>
                     <button type="submit" class="btn btn-primary">建立</button>

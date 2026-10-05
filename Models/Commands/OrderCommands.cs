@@ -8,6 +8,9 @@ public static class OrderLimits
     /// <summary>單行品項／加料數量上限；避免極端值使金額超出資料庫 decimal(10,2) 範圍導致存檔失敗。</summary>
     public const int MaxQuantity = 99;
 
+    /// <summary>桌號長度上限（2026-10-05 使用者決議只限制長度、中英數皆可）；資料庫欄位為 20，在此範圍內調整不需 Migration。</summary>
+    public const int MaxTableNumberLength = 10;
+
     /// <summary>辣度為 0（不辣）到 6 的數字，出單直接印數字；未選擇時預設 1（2026-10-05 使用者決議，取代原本五級中文辣度）。</summary>
     public const int MinSpiceLevel = 0;
     public const int MaxSpiceLevel = 6;
@@ -16,7 +19,7 @@ public static class OrderLimits
 
 public sealed record CreateOrderCommand(
     [Required(ErrorMessage = "請選擇通路")] OrderChannel Channel,
-    [StringLength(20, ErrorMessage = "桌號不得超過 20 字")] string? TableNumber);
+    [StringLength(OrderLimits.MaxTableNumberLength, ErrorMessage = "桌號最多 {1} 個字")] string? TableNumber);
 
 public sealed record AddOnSelectionCommand(
     [Range(1, int.MaxValue, ErrorMessage = "加料品項錯誤")] int AddOnId,

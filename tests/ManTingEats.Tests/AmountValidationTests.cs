@@ -83,6 +83,17 @@ public class AmountValidationTests
     }
 
     [Theory]
+    [InlineData("12", true)]
+    [InlineData("A3", true)]
+    [InlineData("外帶區1", true)]
+    [InlineData("1234567890", true)]
+    [InlineData("12345678901", false)]
+    public void TableNumber_MaxTenCharacters(string tableNumber, bool expectedValid)
+    {
+        Assert.Equal(expectedValid, Validate(new CreateOrderCommand(OrderChannel.DineIn, tableNumber)).Count == 0);
+    }
+
+    [Theory]
     [InlineData(0, true)]
     [InlineData(6, true)]
     [InlineData(-1, false)]
