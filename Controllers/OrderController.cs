@@ -109,6 +109,7 @@ public sealed class OrderController : Controller
                 .ThenInclude(i => i.AddOns)
             .Include(o => o.CreatedByEmployee)
             .Include(o => o.VoidedByEmployee)
+            .Include(o => o.DiscountedByEmployee)
             .SingleOrDefaultAsync(o => o.Id == id);
         if (order is null)
         {
@@ -378,7 +379,12 @@ public sealed class OrderController : Controller
 
     [HttpPost]
     [ValidateAntiForgeryToken]
-    public async Task<IActionResult> Checkout(int id, decimal? receivedAmount)
+    public async Task<IActionResult> Checkout(
+        int id,
+        decimal? receivedAmount,
+        decimal? discountedAmount = null,
+        DiscountReason? discountReason = null,
+        string? discountNote = null)
     {
         var order = await _db.Orders
             .Include(o => o.Items)
@@ -405,19 +411,42 @@ public sealed class OrderController : Controller
             return RedirectToAction(nameof(Details), new { id });
         }
 
+        // 折扣（v8）：前端把改收金額／打折／抹零都換算成折扣後應收金額送來；未給折扣時為 null
+        var note = string.IsNullOrWhiteSpace(discountNote) ? null : discountNote.Trim();
+        if (discountedAmount is not null)
+        {
+            var discountError = OrderDiscount.Validate(order.TotalAmount, discountedAmount.Value, discountReason, note);
+            if (discountError is not null)
+            {
+                TempData["Error"] = discountError;
+                return RedirectToAction(nameof(Details), new { id });
+            }
+        }
+        var amountDue = discountedAmount ?? order.TotalAmount;
+
         // 收款金額只用來檢查與算找零，不存資料庫（v6 決議）；後端仍需檢查，防止繞過結帳視窗直接送出
-        var paymentError = CashPayment.Validate(receivedAmount, order.TotalAmount);
+        var paymentError = CashPayment.Validate(receivedAmount, amountDue);
         if (paymentError is not null)
         {
             TempData["Error"] = paymentError;
             return RedirectToAction(nameof(Details), new { id });
         }
 
+        if (discountedAmount is not null)
+        {
+            // 折扣影響實收與營收報表，需留下金額、原因與操作者供事後對帳
+            order.DiscountAmount = order.TotalAmount - discountedAmount.Value;
+            order.DiscountReason = discountReason;
+            order.DiscountNote = note;
+            order.DiscountedByEmployeeId = CurrentEmployeeId;
+        }
+
         order.Status = OrderStatus.Completed;
         order.CompletedAt = DateTime.UtcNow;
         await _db.SaveChangesAsync();
         // 找零放在成功訊息中，店長找錢時可再看一次
-        TempData["Success"] = $"結帳完成，收 ${receivedAmount!.Value:F0}，找零 ${receivedAmount.Value - order.TotalAmount:F0}。";
+        var discountText = order.DiscountAmount > 0 ? $"（折扣 ${order.DiscountAmount:F0}，應收 ${amountDue:F0}）" : string.Empty;
+        TempData["Success"] = $"結帳完成{discountText}，收 ${receivedAmount!.Value:F0}，找零 ${receivedAmount.Value - amountDue:F0}。";
 
         return RedirectToAction(nameof(Details), new { id });
     }

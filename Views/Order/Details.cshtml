@@ -26,6 +26,19 @@
             <dd class="col-sm-4">@(order.TableNumber ?? "-")</dd>
             <dt class="col-sm-2">總金額</dt>
             <dd class="col-sm-4 fs-5 fw-bold">$@order.TotalAmount.ToString("F2")</dd>
+            @if (order.DiscountAmount > 0)
+            {
+                @* 折扣（v8）：總金額維持原價，另列折扣與實收 *@
+                <dt class="col-sm-2">折扣</dt>
+                <dd class="col-sm-4 text-danger">
+                    −$@order.DiscountAmount.ToString("F2")
+                    <div class="small text-muted">
+                        @order.DiscountReason?.ToDisplayText()@(string.IsNullOrEmpty(order.DiscountNote) ? "" : "：" + order.DiscountNote)（操作者：@order.DiscountedByEmployee?.Username）
+                    </div>
+                </dd>
+                <dt class="col-sm-2">實收</dt>
+                <dd class="col-sm-4 fs-5 fw-bold">$@order.AmountDue.ToString("F2")</dd>
+            }
             @if (order.Status == OrderStatus.Voided)
             {
                 <dt class="col-sm-2">作廢原因</dt>
@@ -295,29 +308,60 @@
                     <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="關閉"></button>
                 </div>
                 <div class="modal-body">
-                    <div class="text-center mb-3">
-                        <div class="text-muted">應收</div>
-                        <div class="display-5 fw-bold text-brand">$@totalText</div>
-                        <div class="text-muted small">結帳後將無法再加點</div>
-                    </div>
-
-                    <form asp-action="Checkout" asp-route-id="@order.Id" method="post">
-                        <input type="hidden" name="receivedAmount" value="@totalText" />
-                        <button type="submit" class="btn btn-success btn-lg w-100">收剛好，直接結帳</button>
-                    </form>
-
-                    <hr />
-
-                    <form asp-action="Checkout" asp-route-id="@order.Id" method="post" id="cashForm" data-total="@totalText">
-                        <label for="receivedAmount" class="form-label">或輸入收到的金額</label>
-                        <div class="d-flex flex-wrap gap-2 mb-2">
-                            @foreach (var amount in ManTingEats.Services.CashPayment.QuickAmounts(order.TotalAmount))
-                            {
-                                <button type="button" class="btn btn-outline-primary btn-lg flex-fill quick-amount" data-amount="@amount.ToString("F0")">$@amount.ToString("F0")</button>
-                            }
+                    @* 單一表單：「收剛好」與「確認結帳」都送出同一份資料，折扣欄位（v8）才能一併帶到後端 *@
+                    <form asp-action="Checkout" asp-route-id="@order.Id" method="post" id="checkoutForm" data-total="@totalText">
+                        <div class="text-center mb-3">
+                            <div class="text-muted">應收</div>
+                            <div class="text-muted text-decoration-line-through" id="originalTotal" hidden>$@totalText</div>
+                            <div class="display-5 fw-bold text-brand" id="dueDisplay">$@totalText</div>
+                            <div class="text-muted small">結帳後將無法再加點</div>
                         </div>
+
+                        <div class="text-center mb-3">
+                            <button type="button" class="btn btn-outline-secondary btn-sm" id="btnToggleDiscount">給折扣</button>
+                        </div>
+
+                        @* 折扣（v8）：改收金額／打折／抹零都換算成折扣後應收金額，以 discountedAmount 送出；收起時該欄位停用、不送出 *@
+                        <div class="border rounded p-3 mb-3" id="discountSection" hidden>
+                            <div class="btn-group w-100 mb-2" role="group">
+                                <input type="radio" class="btn-check" name="discountMode" id="discountModeAmount" value="amount" checked />
+                                <label class="btn btn-outline-secondary" for="discountModeAmount">改收金額</label>
+                                <input type="radio" class="btn-check" name="discountMode" id="discountModeRate" value="rate" />
+                                <label class="btn btn-outline-secondary" for="discountModeRate">打折</label>
+                            </div>
+                            <div id="discountAmountGroup" class="mb-2">
+                                <input type="number" inputmode="numeric" id="discountFinal" class="form-control form-control-lg" min="0" step="1" placeholder="要收的金額" />
+                            </div>
+                            <div id="discountRateGroup" class="mb-2" hidden>
+                                <input type="number" inputmode="numeric" id="discountRate" class="form-control form-control-lg" min="1" max="99" step="1" placeholder="幾折（9 折輸入 9、85 折輸入 85）" />
+                            </div>
+                            @if (order.TotalAmount % 10 != 0)
+                            {
+                                <button type="button" class="btn btn-outline-primary btn-sm mb-2" id="btnRoundOff" data-amount="@ManTingEats.Services.OrderDiscount.RoundOff(order.TotalAmount).ToString("F0")">抹零（收 $@ManTingEats.Services.OrderDiscount.RoundOff(order.TotalAmount).ToString("F0")）</button>
+                            }
+
+                            <div class="small text-muted mb-1">折扣原因（必選）</div>
+                            <div class="d-flex flex-wrap gap-1 mb-2">
+                                @foreach (var reason in Enum.GetValues<DiscountReason>())
+                                {
+                                    <input type="radio" class="btn-check" name="discountReason" id="reason-@reason" value="@reason" data-requires-note="@ManTingEats.Services.OrderDiscount.RequiresNote(reason).ToString().ToLowerInvariant()" disabled />
+                                    <label class="btn btn-sm btn-outline-secondary" for="reason-@reason">@reason.ToDisplayText()</label>
+                                }
+                            </div>
+                            <input type="text" name="discountNote" id="discountNote" class="form-control mb-2" maxlength="@ManTingEats.Services.OrderDiscount.MaxNoteLength" placeholder="說明（餐點問題、其他必填）" disabled />
+                            <div id="discountSummary" class="small"></div>
+                            <input type="hidden" name="discountedAmount" id="discountedAmount" disabled />
+                            <button type="button" class="btn btn-link btn-sm px-0" id="btnCancelDiscount">取消折扣</button>
+                        </div>
+
+                        <button type="button" class="btn btn-success btn-lg w-100" id="btnExact">收剛好，直接結帳</button>
+
+                        <hr />
+
+                        <label for="receivedAmount" class="form-label">或輸入收到的金額</label>
+                        <div class="d-flex flex-wrap gap-2 mb-2" id="quickAmounts"></div>
                         <input type="number" inputmode="numeric" name="receivedAmount" id="receivedAmount" class="form-control form-control-lg"
-                               min="@totalText" max="@ManTingEats.Services.CashPayment.MaxReceivedAmount.ToString("F0")" step="1" placeholder="收到金額" required />
+                               min="0" max="@ManTingEats.Services.CashPayment.MaxReceivedAmount.ToString("F0")" step="1" placeholder="收到金額" />
                         <div id="changeDisplay" class="fs-3 fw-bold text-center mt-3 text-muted">請選擇或輸入金額</div>
                         <button type="submit" id="btnConfirmCheckout" class="btn btn-primary btn-lg w-100 mt-3" disabled>確認結帳</button>
                     </form>
@@ -361,52 +405,214 @@
 
 @section Scripts {
     <script>
-        // 結帳收款：即時顯示找零；金額不足時停用「確認結帳」（後端 Checkout 也會再檢查）
+        // 結帳收款（v6）＋折扣（v8）：即時計算折扣後應收與找零；條件不符時停用送出按鈕（後端 Checkout 也會再檢查）
         (function () {
-            var cashForm = document.getElementById('cashForm');
-            if (!cashForm) {
+            var form = document.getElementById('checkoutForm');
+            if (!form) {
                 return;
             }
-            var total = parseInt(cashForm.dataset.total, 10);
+            var total = parseInt(form.dataset.total, 10);
             var input = document.getElementById('receivedAmount');
             var display = document.getElementById('changeDisplay');
             var confirmButton = document.getElementById('btnConfirmCheckout');
+            var exactButton = document.getElementById('btnExact');
+            var dueDisplay = document.getElementById('dueDisplay');
+            var originalTotal = document.getElementById('originalTotal');
+            var section = document.getElementById('discountSection');
+            var toggleButton = document.getElementById('btnToggleDiscount');
+            var finalInput = document.getElementById('discountFinal');
+            var rateInput = document.getElementById('discountRate');
+            var noteInput = document.getElementById('discountNote');
+            var summary = document.getElementById('discountSummary');
+            var discountedAmount = document.getElementById('discountedAmount');
+            var reasonInputs = form.querySelectorAll('input[name="discountReason"]');
+            var quickContainer = document.getElementById('quickAmounts');
 
-            function updateChange() {
-                var received = parseInt(input.value, 10);
-                if (isNaN(received)) {
+            // 打折：1～9 代表幾折、10～99 代表幾幾折，四捨五入到元（與 OrderDiscount.ApplyRate 相同）
+            function applyRate(rate) {
+                var percent = rate >= 1 && rate <= 9 ? rate * 10 : (rate >= 10 && rate <= 99 ? rate : 0);
+                return percent === 0 ? NaN : Math.round(total * percent / 100);
+            }
+
+            // 只接受整數：parseInt 會把 8.5 默默當成 8（85 折變 8 折），因此先檢查格式，小數一律視為錯誤
+            function readWhole(el) {
+                var raw = el.value.trim();
+                if (raw === '' && !el.validity.badInput) {
+                    return { empty: true, valid: false, value: NaN };
+                }
+                var valid = /^\d+$/.test(raw);
+                return { empty: false, valid: valid, value: valid ? parseInt(raw, 10) : NaN };
+            }
+
+            function mode() {
+                return form.querySelector('input[name="discountMode"]:checked').value;
+            }
+
+            function selectedReason() {
+                return form.querySelector('input[name="discountReason"]:checked');
+            }
+
+            // 回傳 { due, error }：未開啟折扣時 due 即原價
+            function discountState() {
+                if (section.hidden) {
+                    return { due: total, error: null };
+                }
+                var due;
+                if (mode() === 'amount') {
+                    var amount = readWhole(finalInput);
+                    if (amount.empty) {
+                        return { due: total, error: '請輸入要收的金額' };
+                    }
+                    if (!amount.valid) {
+                        return { due: total, error: '要收的金額請輸入整數' };
+                    }
+                    due = amount.value;
+                } else {
+                    var rate = readWhole(rateInput);
+                    if (rate.empty) {
+                        return { due: total, error: '請輸入折數' };
+                    }
+                    if (!rate.valid) {
+                        return { due: total, error: '折數請輸入整數（85 折請輸入 85）' };
+                    }
+                    due = applyRate(rate.value);
+                    if (isNaN(due)) {
+                        return { due: total, error: '請輸入 1～99 的折數' };
+                    }
+                }
+                if (due < 0 || due >= total) {
+                    return { due: total, error: '折扣後金額需介於 0 與原價之間' };
+                }
+                var reason = selectedReason();
+                if (!reason) {
+                    return { due: due, error: '請選擇折扣原因' };
+                }
+                if (reason.dataset.requiresNote === 'true' && noteInput.value.trim() === '') {
+                    return { due: due, error: '此原因需填寫說明' };
+                }
+                return { due: due, error: null };
+            }
+
+            // 快速金額：下一個整百、$500、$1000 中大於應收者（與 v6 規則相同，依折扣後應收重新計算）
+            function renderQuickAmounts(due) {
+                var amounts = [Math.floor(due / 100) * 100 + 100, 500, 1000]
+                    .filter(function (a, i, all) { return a > due && all.indexOf(a) === i; })
+                    .sort(function (a, b) { return a - b; });
+                quickContainer.innerHTML = '';
+                amounts.forEach(function (amount) {
+                    var btn = document.createElement('button');
+                    btn.type = 'button';
+                    btn.className = 'btn btn-outline-primary btn-lg flex-fill';
+                    btn.textContent = '$' + amount;
+                    btn.addEventListener('click', function () {
+                        input.value = amount;
+                        update();
+                    });
+                    quickContainer.appendChild(btn);
+                });
+            }
+
+            var lastDue = null;
+            function update() {
+                var state = discountState();
+                var due = state.due;
+                var discountValid = !section.hidden && state.error === null;
+
+                discountedAmount.disabled = !discountValid;
+                discountedAmount.value = discountValid ? due : '';
+                originalTotal.hidden = !discountValid;
+                dueDisplay.textContent = '$' + due;
+                if (!section.hidden) {
+                    summary.className = 'small ' + (state.error ? 'text-danger' : 'text-success');
+                    summary.textContent = state.error
+                        ? state.error
+                        : '原價 $' + total + ' → 折扣 −$' + (total - due) + ' → 應收 $' + due;
+                }
+                if (due !== lastDue) {
+                    renderQuickAmounts(due);
+                    lastDue = due;
+                }
+
+                var blocked = !section.hidden && state.error !== null;
+                exactButton.disabled = blocked;
+                var receivedInput = readWhole(input);
+                var received = receivedInput.value;
+                if (receivedInput.empty) {
                     display.className = 'fs-3 fw-bold text-center mt-3 text-muted';
                     display.textContent = '請選擇或輸入金額';
                     confirmButton.disabled = true;
-                } else if (received < total) {
+                } else if (!receivedInput.valid) {
                     display.className = 'fs-3 fw-bold text-center mt-3 text-danger';
-                    display.textContent = '還差 $' + (total - received);
+                    display.textContent = '收到金額請輸入整數';
+                    confirmButton.disabled = true;
+                } else if (received < due) {
+                    display.className = 'fs-3 fw-bold text-center mt-3 text-danger';
+                    display.textContent = '還差 $' + (due - received);
                     confirmButton.disabled = true;
                 } else {
                     display.className = 'fs-3 fw-bold text-center mt-3 text-success';
-                    display.textContent = '找零 $' + (received - total);
-                    confirmButton.disabled = false;
+                    display.textContent = '找零 $' + (received - due);
+                    confirmButton.disabled = blocked;
                 }
             }
 
-            input.addEventListener('input', updateChange);
-            cashForm.querySelectorAll('.quick-amount').forEach(function (btn) {
-                btn.addEventListener('click', function () {
-                    input.value = this.dataset.amount;
-                    updateChange();
+            function setDiscountOpen(open) {
+                section.hidden = !open;
+                toggleButton.hidden = open;
+                // 收起時停用原因與說明欄位，避免沒有折扣卻送出原因
+                reasonInputs.forEach(function (r) { r.disabled = !open; if (!open) { r.checked = false; } });
+                noteInput.disabled = !open;
+                if (!open) {
+                    finalInput.value = '';
+                    rateInput.value = '';
+                    noteInput.value = '';
+                    summary.textContent = '';
+                }
+                update();
+            }
+
+            toggleButton.addEventListener('click', function () { setDiscountOpen(true); finalInput.focus(); });
+            document.getElementById('btnCancelDiscount').addEventListener('click', function () { setDiscountOpen(false); });
+            form.querySelectorAll('input[name="discountMode"]').forEach(function (radio) {
+                radio.addEventListener('change', function () {
+                    document.getElementById('discountAmountGroup').hidden = mode() !== 'amount';
+                    document.getElementById('discountRateGroup').hidden = mode() !== 'rate';
+                    update();
                 });
+            });
+            var roundOff = document.getElementById('btnRoundOff');
+            if (roundOff) {
+                roundOff.addEventListener('click', function () {
+                    document.getElementById('discountModeAmount').click();
+                    finalInput.value = this.dataset.amount;
+                    document.getElementById('reason-RoundOff').checked = true;
+                    update();
+                });
+            }
+            [finalInput, rateInput, noteInput, input].forEach(function (el) { el.addEventListener('input', update); });
+            reasonInputs.forEach(function (r) { r.addEventListener('change', update); });
+
+            // 收剛好：收款金額等於（折扣後）應收，直接送出
+            exactButton.addEventListener('click', function () {
+                input.value = discountState().due;
+                update();
+                if (!exactButton.disabled) {
+                    exactButton.disabled = true;
+                    confirmButton.disabled = true;
+                    form.submit();
+                }
             });
             // 防止連點送出兩次：第二次會因訂單已結帳而顯示錯誤，蓋掉含找零的成功訊息
-            document.querySelectorAll('#checkoutModal form').forEach(function (form) {
-                form.addEventListener('submit', function () {
-                    form.querySelector('[type="submit"]').disabled = true;
-                });
+            form.addEventListener('submit', function () {
+                confirmButton.disabled = true;
+                exactButton.disabled = true;
             });
-            // 每次打開結帳視窗都從空白開始，避免沿用上次輸入的金額
+            // 每次打開結帳視窗都從原價、空白金額開始，避免沿用上次輸入
             document.getElementById('checkoutModal').addEventListener('show.bs.modal', function () {
                 input.value = '';
-                updateChange();
+                setDiscountOpen(false);
             });
+            update();
         })();
 
         document.querySelectorAll('.menu-item-card').forEach(function (btn) {

@@ -38,6 +38,13 @@ public sealed class AppDbContext : DbContext
             entity.Property(e => e.TableNumber).HasMaxLength(20);
             entity.Property(e => e.TotalAmount).HasPrecision(10, 2);
             entity.Property(e => e.VoidReason).HasMaxLength(200);
+            entity.Property(e => e.DiscountAmount).HasPrecision(10, 2);
+            entity.Property(e => e.DiscountNote).HasMaxLength(100);
+
+            entity.HasOne(e => e.DiscountedByEmployee)
+                .WithMany()
+                .HasForeignKey(e => e.DiscountedByEmployeeId)
+                .OnDelete(DeleteBehavior.Restrict);
 
             entity.HasOne(e => e.CreatedByEmployee)
                 .WithMany(e => e.CreatedOrders)

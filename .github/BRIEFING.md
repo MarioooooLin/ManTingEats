@@ -46,6 +46,7 @@
 - [x] 出單列印模組（見 [docs/prd/v5.md](../docs/prd/v5.md)，取代 [v3.md](../docs/prd/v3.md) 的連線方式）：iPad USB 直連 MCP31L + Star PassPRNT App，58mm 紙；2026-10-04 iPad 實機測試通過，舊 LAN 直連程式已移除
 - [x] 結帳收款與找零（見 [docs/prd/v6.md](../docs/prd/v6.md)）：結帳視窗須「收剛好」或輸入收款金額（含快速金額按鈕），即時顯示找零；收款金額不存資料庫
 - [x] 帳號與權限管理（見 [docs/prd/v7.md](../docs/prd/v7.md)）：單一店長＋員工帳號；員工僅能使用訂單與訂位；店長可新增員工、重設密碼、停用帳號、變更自己的密碼；停用或重設密碼立即登出該帳號的裝置
+- [x] 結帳折扣（見 [docs/prd/v8.md](../docs/prd/v8.md)）：改收金額／打折／抹零，原因必選（餐點問題、其他需說明），記錄折扣金額與操作者；營收報表以實收計算並顯示折扣總額
 - [x] 點餐客製化模組（見 [docs/prd/v4.md](../docs/prd/v4.md)）：Model/Migration/Controller/View 已實作（全店共用加料清單、辣度 0～6、客製化品項數量鎖定 1），已套用至本機開發資料庫，尚待瀏覽器手動實測與 UI/UX 細節優化
 > PRD MVP 五大模組（Auth/Menu/Order/Reservation/Reporting）均已實作並實機驗證。
 

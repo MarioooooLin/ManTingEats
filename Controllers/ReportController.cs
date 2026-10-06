@@ -43,7 +43,9 @@ public sealed class ReportController : Controller
                 .ThenInclude(i => i.AddOns)
             .ToListAsync();
 
-        var totalRevenue = completedOrders.Sum(o => o.TotalAmount);
+        // 營收以實收（原價 − 折扣，v8）計算；折扣總額另列，品項與加料排行仍為原價
+        var totalRevenue = completedOrders.Sum(o => o.AmountDue);
+        var totalDiscount = completedOrders.Sum(o => o.DiscountAmount);
 
         var totalExpense = await _db.Expenses
             .Where(e => e.Date >= startDate && e.Date < endExclusive)
@@ -51,7 +53,7 @@ public sealed class ReportController : Controller
 
         var channelBreakdown = completedOrders
             .GroupBy(o => o.Channel)
-            .Select(g => new ChannelRevenue(g.Key, g.Sum(o => o.TotalAmount)))
+            .Select(g => new ChannelRevenue(g.Key, g.Sum(o => o.AmountDue)))
             .OrderByDescending(c => c.Amount)
             .ToList();
 
@@ -63,7 +65,7 @@ public sealed class ReportController : Controller
             .ToList();
 
         // 加料以下單當下的名稱快照分組，加料日後改名或停用仍對得上歷史金額；
-        // 金額算法與 OrderController.ComputeTotal 一致，品項與加料兩張排行相加才會等於總營收
+        // 金額算法與 OrderController.ComputeTotal 一致，品項與加料兩張排行相加、再減去折扣總額，才會等於總營收
         var addOnRanking = completedOrders
             .SelectMany(o => o.Items)
             .SelectMany(i => i.AddOns)
@@ -77,6 +79,7 @@ public sealed class ReportController : Controller
             StartDate = startDate,
             EndDate = endDate,
             TotalRevenue = totalRevenue,
+            TotalDiscount = totalDiscount,
             TotalExpense = totalExpense,
             ChannelBreakdown = channelBreakdown,
             ItemRanking = itemRanking,

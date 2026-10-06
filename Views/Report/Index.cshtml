@@ -41,6 +41,10 @@
             <div class="card-body">
                 <h6 class="text-muted">總營收</h6>
                 <p class="display-6 mb-0">$@Model.TotalRevenue.ToString("F2")</p>
+                @if (Model.TotalDiscount > 0)
+                {
+                    <div class="small text-muted mt-1">已扣除折扣 $@Model.TotalDiscount.ToString("F2")</div>
+                }
             </div>
         </div>
     </div>

@@ -44,4 +44,14 @@ public static class EnumDisplayExtensions
         EmployeeRole.Staff => "員工",
         _ => role.ToString()
     };
+
+    public static string ToDisplayText(this DiscountReason reason) => reason switch
+    {
+        DiscountReason.RegularCustomer => "熟客",
+        DiscountReason.RoundOff => "抹零",
+        DiscountReason.Treat => "招待",
+        DiscountReason.FoodIssue => "餐點問題",
+        DiscountReason.Other => "其他",
+        _ => reason.ToString()
+    };
 }

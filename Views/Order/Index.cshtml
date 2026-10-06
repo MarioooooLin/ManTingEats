@@ -23,7 +23,7 @@ else
                     <th>通路</th>
                     <th>桌號</th>
                     <th>狀態</th>
-                    <th class="text-end">總金額</th>
+                    <th class="text-end">實收</th>
                     <th>建立時間</th>
                     <th class="text-end">操作</th>
                 </tr>
@@ -44,7 +44,13 @@ else
                         <td><span class="badge @channelBadgeClass">@order.Channel.ToDisplayText()</span></td>
                         <td>@(order.TableNumber ?? "-")</td>
                         <td><span class="badge @badgeClass">@order.Status.ToDisplayText()</span></td>
-                        <td class="text-end">$@order.TotalAmount.ToString("F2")</td>
+                        <td class="text-end">
+                            $@order.AmountDue.ToString("F2")
+                            @if (order.DiscountAmount > 0)
+                            {
+                                <div class="small text-muted">原價 $@order.TotalAmount.ToString("F0")，折 $@order.DiscountAmount.ToString("F0")</div>
+                            }
+                        </td>
                         <td>@order.CreatedAt.ToLocalTime().ToString("yyyy-MM-dd HH:mm")</td>
                         <td class="text-end text-nowrap">
                             <a asp-action="Details" asp-route-id="@order.Id" class="btn btn-sm btn-outline-secondary">查看</a>

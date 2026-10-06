@@ -14,7 +14,19 @@ public sealed class Order
     public string? TableNumber { get; set; }
 
     public OrderStatus Status { get; set; } = OrderStatus.Open;
+
+    /// <summary>品項＋加料的原價合計；折扣另記於 DiscountAmount，實收請用 AmountDue。</summary>
     public decimal TotalAmount { get; set; }
+
+    /// <summary>結帳時給的折扣金額（v8），未折扣為 0。</summary>
+    public decimal DiscountAmount { get; set; }
+    public DiscountReason? DiscountReason { get; set; }
+    public string? DiscountNote { get; set; }
+    public int? DiscountedByEmployeeId { get; set; }
+    public Employee? DiscountedByEmployee { get; set; }
+
+    /// <summary>實收金額 = 原價 − 折扣；營收報表以此計算。唯讀屬性不對應資料庫欄位。</summary>
+    public decimal AmountDue => TotalAmount - DiscountAmount;
 
     public int CreatedByEmployeeId { get; set; }
     public Employee? CreatedByEmployee { get; set; }
