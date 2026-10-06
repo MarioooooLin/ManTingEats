@@ -30,13 +30,15 @@
 ### 正式環境主機與網域（2026-10-06 已上線，待實測）
 
 - **VPS：Vultr 東京機房，Regular Cloud Compute 2GB**（1 vCPU / 2GB，約 $10／月）。
+- **Vultr 費用**：新帳號促銷額度 $250，**2026-11-06 到期**（過期作廢），期間內費用由額度扣抵；之後改由使用者綁定的信用卡扣款，主機＋自動備份約 **$12／月**。帳務頁的 Current Balance 負數代表尚有額度。
 - **網域：Cloudflare Registrar 註冊 `.com`**（成本價約 $10.46／年，續約不漲）。**2026-10-06 已註冊完成**；網域名稱不寫在公開 repo，部署時填入 VPS 上的 `.env`（`DOMAIN`）。DNS 由 Cloudflare 代管，A 記錄指向 VPS IP，**proxy 設為灰色雲（DNS only）**，讓 Caddy 直接向 Let's Encrypt 申請憑證。
 - **部署完成（2026-10-06）**：
   - 主機：Ubuntu LTS、時區 Asia/Taipei、Docker 29.8.2／Compose v5.6.0；Vultr 防火牆群組開放 22／80／443；swap 為 Vultr 預建的 5.3GB（不需另加，`fallocate` 會因 swapfile 使用中而失敗）。實際可用記憶體約 1.6GB（系統保留一部分）。
   - 程式位於 `/opt/mantingeats`（`git clone`），`.env` 權限 600；兩組 DB 密碼以 `openssl rand -hex 16` 產生，**第一次啟動後不可再改**（MySQL 只在資料庫初始化時讀取）。網站帳密由使用者自行設定。
   - `docker compose -f docker-compose.prod.yml up -d --build` 後 web／db／caddy 皆 Up，Caddy 已取得 Let's Encrypt 憑證，網站可正常開啟。
   - 更新程式：`cd /opt/mantingeats && git pull && docker compose -f docker-compose.prod.yml up -d --build`（資料存於 Docker volume，Migration 啟動時自動套用）。
-- **下一步**：登入測試 → iPad PassPRNT 出單實測（測試單作廢、測試品項下架）→ 輸入真實菜單（**勿執行 `import-menu-seed.sh`**）→ 討論並設定每日備份 crontab。
+- **備份（2026-10-06 設定完成）**：每日 **08:00**（台灣時間；店家營業晚餐與消夜，早上無人使用）由 root crontab 執行 `sh /opt/mantingeats/scripts/backup-db.sh >> /opt/mantingeats/backups/backup.log 2>&1`，保留 7 天。腳本在 repo 中無執行權限，故以 `sh` 呼叫；改時區後需 `systemctl restart cron` 才會依台灣時間排程。另開啟 **Vultr 自動備份**（整台主機快照，建議排在 08:00 之後），作為主機外的一層備份；異地備份（低 7）可延後。
+- **下一步**：登入測試 → iPad PassPRNT 出單實測（到店裡才能做；測試單作廢、測試品項下架）→ 輸入真實菜單（**勿執行 `import-menu-seed.sh`**）。
 - 程式碼不需修改：網域、密碼皆透過 `.env` 設定；PassPRNT 回呼網址以 `location.origin` 組成，自動使用正式網域。部署步驟見 2026-10-06「正式環境主機與網域選定」紀錄。
 
 ### 結帳收款與找零（2026-10-04 完成，iPad 實測通過）
