@@ -1,4 +1,5 @@
 using ManTingEats.Controllers;
+using ManTingEats.Models;
 using ManTingEats.Models.Commands;
 using ManTingEats.Models.Entities;
 using ManTingEats.Services;
@@ -101,6 +102,51 @@ public sealed class ReservationControllerTests : IDisposable
 
         Assert.IsType<RedirectToActionResult>(result);
         Assert.Null(LoadReservation(id));
+    }
+
+    private async Task<ReservationSearchViewModel> LoadIndex(string? customerName = null, DateTime? date = null)
+    {
+        var result = await CreateController().Index(customerName, date);
+        return Assert.IsType<ReservationSearchViewModel>(Assert.IsType<ViewResult>(result).Model);
+    }
+
+    [Fact]
+    public async Task Index_NoFilter_ShowsOnlyFromTodayInTimeOrder()
+    {
+        var today = TaipeiTime.Today;
+        SeedReservation(today.AddDays(-1).AddHours(18));
+        var later = SeedReservation(today.AddDays(2).AddHours(18));
+        var earlierToday = SeedReservation(today.AddHours(1));    // 今天稍早（可能已過）仍要列出
+
+        var model = await LoadIndex();
+
+        Assert.True(model.UpcomingOnly);
+        Assert.Equal([earlierToday, later], model.Results.Items.Select(r => r.Id).ToList());
+    }
+
+    [Fact]
+    public async Task Index_NameSearch_IncludesPastNewestFirst()
+    {
+        var today = TaipeiTime.Today;
+        var past = SeedReservation(today.AddDays(-30));
+        var upcoming = SeedReservation(today.AddDays(3));
+
+        var model = await LoadIndex(customerName: "小明");
+
+        Assert.False(model.UpcomingOnly);
+        Assert.Equal([upcoming, past], model.Results.Items.Select(r => r.Id).ToList());
+    }
+
+    [Fact]
+    public async Task Index_DateSearch_CanShowPastDay()
+    {
+        var pastDay = TaipeiTime.Today.AddDays(-10);
+        var id = SeedReservation(pastDay.AddHours(18));
+        SeedReservation(TaipeiTime.Today.AddDays(1));
+
+        var model = await LoadIndex(date: pastDay);
+
+        Assert.Equal([id], model.Results.Items.Select(r => r.Id).ToList());
     }
 
     [Fact]

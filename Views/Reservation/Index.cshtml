@@ -27,7 +27,12 @@
     </div>
 </div>
 
-@if (Model.Results.Count == 0)
+@if (Model.UpcomingOnly)
+{
+    <p class="text-muted">目前顯示今天以後的訂位；查詢過去的訂位請輸入姓名或選擇日期。</p>
+}
+
+@if (Model.Results.TotalCount == 0)
 {
     <p class="text-muted">查無訂位記錄。</p>
 }
@@ -46,7 +51,7 @@ else
                 </tr>
             </thead>
             <tbody>
-                @foreach (var reservation in Model.Results)
+                @foreach (var reservation in Model.Results.Items)
                 {
                     <tr>
                         <td>@reservation.CustomerName</td>
@@ -65,4 +70,5 @@ else
         </table>
         </div>
     </div>
+    <partial name="_Pagination" model="Model.Results" />
 }

@@ -41,7 +41,7 @@
 
 <p class="text-muted">支出總額：<strong>$@Model.TotalAmount.ToString("F2")</strong></p>
 
-@if (Model.Results.Count == 0)
+@if (Model.Results.TotalCount == 0)
 {
     <p class="text-muted">查無支出記錄。</p>
 }
@@ -60,7 +60,7 @@ else
                 </tr>
             </thead>
             <tbody>
-                @foreach (var expense in Model.Results)
+                @foreach (var expense in Model.Results.Items)
                 {
                     <tr>
                         <td>@expense.Date.ToString("yyyy-MM-dd")</td>
@@ -79,4 +79,5 @@ else
         </table>
         </div>
     </div>
+    <partial name="_Pagination" model="Model.Results" />
 }

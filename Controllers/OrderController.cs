@@ -25,12 +25,14 @@ public sealed class OrderController : Controller
 
     private int CurrentEmployeeId => int.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier)!);
 
-    public async Task<IActionResult> Index()
+    public async Task<IActionResult> Index(int page = 1)
     {
-        var orders = await _db.Orders
-            .OrderByDescending(o => o.CreatedAt)
-            .ToListAsync();
-        return View(orders);
+        // 未結帳訂單一律排最前面：分頁後若只依建立時間排序，忙碌時較早開的未結帳單會被擠到第二頁而漏結帳
+        var query = _db.Orders
+            .OrderBy(o => o.Status == OrderStatus.Open ? 0 : 1)
+            .ThenByDescending(o => o.CreatedAt)
+            .ThenByDescending(o => o.Id);
+        return View(await PagedList<Order>.CreateAsync(query, page));
     }
 
     [HttpGet]

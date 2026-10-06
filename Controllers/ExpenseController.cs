@@ -20,7 +20,7 @@ public sealed class ExpenseController : Controller
         _db = db;
     }
 
-    public async Task<IActionResult> Index(DateTime? start, DateTime? end, ExpenseCategory? category)
+    public async Task<IActionResult> Index(DateTime? start, DateTime? end, ExpenseCategory? category, int page = 1)
     {
         var query = _db.Expenses.AsQueryable();
 
@@ -40,7 +40,9 @@ public sealed class ExpenseController : Controller
             query = query.Where(e => e.Category == category.Value);
         }
 
-        var results = await query.OrderByDescending(e => e.Date).ToListAsync();
+        // 支出總額需涵蓋所有符合條件的資料，不能只加總目前這一頁
+        var totalAmount = await query.SumAsync(e => e.Amount);
+        var results = await PagedList<Expense>.CreateAsync(query.OrderByDescending(e => e.Date).ThenByDescending(e => e.Id), page);
 
         return View(new ExpenseSearchViewModel
         {
@@ -48,7 +50,7 @@ public sealed class ExpenseController : Controller
             End = end,
             Category = category,
             Results = results,
-            TotalAmount = results.Sum(e => e.Amount)
+            TotalAmount = totalAmount
         });
     }
 

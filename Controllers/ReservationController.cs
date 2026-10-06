@@ -19,13 +19,14 @@ public sealed class ReservationController : Controller
         _db = db;
     }
 
-    public async Task<IActionResult> Index(string? customerName, DateTime? date)
+    public async Task<IActionResult> Index(string? customerName, DateTime? date, int page = 1)
     {
         var query = _db.Reservations.AsQueryable();
+        var hasName = !string.IsNullOrWhiteSpace(customerName);
 
-        if (!string.IsNullOrWhiteSpace(customerName))
+        if (hasName)
         {
-            query = query.Where(r => r.CustomerName.Contains(customerName));
+            query = query.Where(r => r.CustomerName.Contains(customerName!));
         }
 
         if (date.HasValue)
@@ -35,13 +36,26 @@ public sealed class ReservationController : Controller
             query = query.Where(r => r.ReservedAt >= start && r.ReservedAt < end);
         }
 
-        var results = await query.OrderBy(r => r.ReservedAt).ToListAsync();
+        // 未指定姓名與日期時只列今天以後的訂位，否則資料累積後一打開就先看到很久以前的訂位。
+        // 依姓名查詢則涵蓋過去的訂位：顧客請求刪除個資時要能找到舊資料。ReservedAt 存台灣當地時間，故以台灣日期比對
+        var upcomingOnly = !hasName && !date.HasValue;
+        if (upcomingOnly)
+        {
+            var today = TaipeiTime.Today;
+            query = query.Where(r => r.ReservedAt >= today);
+        }
+
+        // 只依姓名查詢時可能橫跨多年，最近的排前面；其餘情況依時段先後，方便看接下來的訂位
+        var ordered = hasName && !date.HasValue
+            ? query.OrderByDescending(r => r.ReservedAt).ThenByDescending(r => r.Id)
+            : query.OrderBy(r => r.ReservedAt).ThenBy(r => r.Id);
 
         return View(new ReservationSearchViewModel
         {
             CustomerName = customerName,
             Date = date,
-            Results = results
+            UpcomingOnly = upcomingOnly,
+            Results = await PagedList<Reservation>.CreateAsync(ordered, page)
         });
     }
 
