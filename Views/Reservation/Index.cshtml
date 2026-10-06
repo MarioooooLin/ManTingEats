@@ -42,6 +42,7 @@ else
                     <th>電話</th>
                     <th class="text-end">人數</th>
                     <th>訂位時段</th>
+                    <th class="text-end">操作</th>
                 </tr>
             </thead>
             <tbody>
@@ -52,6 +53,12 @@ else
                         <td>@reservation.PhoneNumber</td>
                         <td class="text-end">@reservation.PartySize</td>
                         <td>@reservation.ReservedAt.ToString("yyyy-MM-dd HH:mm")</td>
+                        <td class="text-end text-nowrap">
+                            <a asp-action="Edit" asp-route-id="@reservation.Id" class="btn btn-sm btn-outline-secondary">編輯</a>
+                            <form asp-action="Delete" asp-route-id="@reservation.Id" method="post" class="d-inline" onsubmit="return confirm('確定要刪除此筆訂位？此操作無法復原。');">
+                                <button type="submit" class="btn btn-sm btn-outline-danger">刪除</button>
+                            </form>
+                        </td>
                     </tr>
                 }
             </tbody>

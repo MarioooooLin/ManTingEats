@@ -35,7 +35,7 @@
 - [x] 店長登入（Auth）：Cookie Authentication、`PasswordHasher<Employee>` 雜湊、啟動時種子 Manager 帳號（`SeedAdmin` 設定）
 - [x] Menu 模組 CRUD（新增/編輯/上下架，不支援硬刪除），`[Authorize]` 保護
 - [x] Order 模組：建單、加點/移除品項、結帳、作廢（狀態機 Open → Completed → Voided）
-- [x] Reservation 模組：新增訂位、依姓名/日期查詢
+- [x] Reservation 模組：新增、編輯、刪除訂位，依姓名/日期查詢
 - [x] 全站 UI/UX 第一輪優化：卡片化、狀態 badge、全域成功/錯誤訊息、高風險操作加確認對話框
 - [x] Report 模組：指定日期區間總營收、通路拆分、品項與加料分開的銷售排行（今日/本週/本月快速篩選），僅計入已結帳訂單
 - [x] 完整 Docker Compose 驗證（`web`+`db`）：修正 `db` 服務缺少 volume 導致資料無持久化的問題，並補上具名 volume `mysql-data`

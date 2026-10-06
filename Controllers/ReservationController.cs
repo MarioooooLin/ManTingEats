@@ -55,17 +55,7 @@ public sealed class ReservationController : Controller
     [ValidateAntiForgeryToken]
     public async Task<IActionResult> Create(CreateReservationCommand command)
     {
-        // ReservedAt 為使用者輸入的台灣當地時間（非 UTC），故以台灣時間比對
-        var now = TaipeiTime.Now;
-        if (command.ReservedAt < now)
-        {
-            ModelState.AddModelError(nameof(command.ReservedAt), "訂位時間不可早於現在");
-        }
-        else if (command.ReservedAt > now.AddYears(1))
-        {
-            ModelState.AddModelError(nameof(command.ReservedAt), "訂位時間不可超過一年後");
-        }
-
+        ValidateReservedAt(command.ReservedAt, nameof(command.ReservedAt));
         if (!ModelState.IsValid)
         {
             return View(command);
@@ -81,5 +71,78 @@ public sealed class ReservationController : Controller
         await _db.SaveChangesAsync();
         TempData["Success"] = "訂位建立成功。";
         return RedirectToAction(nameof(Index));
+    }
+
+    [HttpGet]
+    public async Task<IActionResult> Edit(int id)
+    {
+        var reservation = await _db.Reservations.FindAsync(id);
+        if (reservation is null)
+        {
+            return NotFound();
+        }
+
+        return View(new UpdateReservationCommand(reservation.Id, reservation.CustomerName, reservation.PhoneNumber, reservation.PartySize, reservation.ReservedAt));
+    }
+
+    [HttpPost]
+    [ValidateAntiForgeryToken]
+    public async Task<IActionResult> Edit(UpdateReservationCommand command)
+    {
+        var reservation = await _db.Reservations.FindAsync(command.Id);
+        if (reservation is null)
+        {
+            return NotFound();
+        }
+
+        // 時段沒改就不檢查：已過的訂位仍要能更正姓名、電話等資料（例如顧客請求更正個資）
+        if (command.ReservedAt != reservation.ReservedAt)
+        {
+            ValidateReservedAt(command.ReservedAt, nameof(command.ReservedAt));
+        }
+
+        if (!ModelState.IsValid)
+        {
+            return View(command);
+        }
+
+        reservation.CustomerName = command.CustomerName;
+        reservation.PhoneNumber = command.PhoneNumber;
+        reservation.PartySize = command.PartySize;
+        reservation.ReservedAt = command.ReservedAt;
+        await _db.SaveChangesAsync();
+        TempData["Success"] = "已更新訂位。";
+        return RedirectToAction(nameof(Index));
+    }
+
+    /// <summary>直接刪除不留紀錄：訂位含姓名與電話，隱私權政策承諾顧客可請求刪除個資。</summary>
+    [HttpPost]
+    [ValidateAntiForgeryToken]
+    public async Task<IActionResult> Delete(int id)
+    {
+        var reservation = await _db.Reservations.FindAsync(id);
+        if (reservation is null)
+        {
+            return NotFound();
+        }
+
+        _db.Reservations.Remove(reservation);
+        await _db.SaveChangesAsync();
+        TempData["Success"] = "已刪除訂位。";
+        return RedirectToAction(nameof(Index));
+    }
+
+    private void ValidateReservedAt(DateTime reservedAt, string fieldName)
+    {
+        // ReservedAt 為使用者輸入的台灣當地時間（非 UTC），故以台灣時間比對
+        var now = TaipeiTime.Now;
+        if (reservedAt < now)
+        {
+            ModelState.AddModelError(fieldName, "訂位時間不可早於現在");
+        }
+        else if (reservedAt > now.AddYears(1))
+        {
+            ModelState.AddModelError(fieldName, "訂位時間不可超過一年後");
+        }
     }
 }

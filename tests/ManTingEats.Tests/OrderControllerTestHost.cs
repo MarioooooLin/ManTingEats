@@ -102,7 +102,7 @@ public sealed class OrderControllerTestHost : IDisposable
 
     public void Dispose() => _connection.Dispose();
 
-    private sealed class NullTempDataProvider : ITempDataProvider
+    internal sealed class NullTempDataProvider : ITempDataProvider
     {
         public IDictionary<string, object> LoadTempData(HttpContext context) => new Dictionary<string, object>();
         public void SaveTempData(HttpContext context, IDictionary<string, object> values) { }
