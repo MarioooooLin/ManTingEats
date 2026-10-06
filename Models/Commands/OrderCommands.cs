@@ -18,7 +18,7 @@ public static class OrderLimits
 }
 
 public sealed record CreateOrderCommand(
-    [Required(ErrorMessage = "請選擇通路")] OrderChannel Channel,
+    [property: Display(Name = "通路")][Required(ErrorMessage = "請選擇通路")] OrderChannel Channel,
     [StringLength(OrderLimits.MaxTableNumberLength, ErrorMessage = "桌號最多 {1} 個字")] string? TableNumber);
 
 public sealed record AddOnSelectionCommand(
