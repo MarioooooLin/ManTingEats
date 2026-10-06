@@ -36,7 +36,9 @@
   - 主機：Ubuntu LTS、時區 Asia/Taipei、Docker 29.8.2／Compose v5.6.0；Vultr 防火牆群組開放 22／80／443；swap 為 Vultr 預建的 5.3GB（不需另加，`fallocate` 會因 swapfile 使用中而失敗）。實際可用記憶體約 1.6GB（系統保留一部分）。
   - 程式位於 `/opt/mantingeats`（`git clone`），`.env` 權限 600；兩組 DB 密碼以 `openssl rand -hex 16` 產生，**第一次啟動後不可再改**（MySQL 只在資料庫初始化時讀取）。網站帳密由使用者自行設定。
   - `docker compose -f docker-compose.prod.yml up -d --build` 後 web／db／caddy 皆 Up，Caddy 已取得 Let's Encrypt 憑證，網站可正常開啟。
-  - 更新程式：`cd /opt/mantingeats && git pull && docker compose -f docker-compose.prod.yml up -d --build`（資料存於 Docker volume，Migration 啟動時自動套用）。
+  - 更新程式：`cd /opt/mantingeats && git pull && docker compose -f docker-compose.prod.yml up -d --build`（資料存於 Docker volume，Migration 啟動時自動套用）。更新前可先 `sh scripts/backup-db.sh` 手動備份；**挑打烊時段更新**（約中斷 10～60 秒）。
+  - 2026-10-07 01:12（打烊後）更新至 `4f0d91c`（MySQL 健康檢查）：更新前手動備份 `mantingeats_20261007_011226.sql`；db 以新設定重建並 Healthy，web 重建後無錯誤、重啟次數 0，HTTPS 登入頁 200。
+  - SSH：Mac 的公鑰已於 2026-10-07 以 `ssh-copy-id` 加入 VPS 的 `root` 帳號，可用金鑰直接登入（另一台電腦的登入方式未記錄）。VPS 目前仍開放密碼登入。**主機 IP 不寫在公開 repo**（見 Vultr 後台）。
 - **備份（2026-10-06 設定完成）**：每日 **08:00**（台灣時間；店家營業晚餐與消夜，早上無人使用）由 root crontab 執行 `sh /opt/mantingeats/scripts/backup-db.sh >> /opt/mantingeats/backups/backup.log 2>&1`，保留 7 天。腳本在 repo 中無執行權限，故以 `sh` 呼叫；改時區後需 `systemctl restart cron` 才會依台灣時間排程。另開啟 **Vultr 自動備份**（整台主機快照，建議排在 08:00 之後），作為主機外的一層備份；異地備份（低 7）可延後。
 - **下一步**：登入測試 → iPad PassPRNT 出單實測（到店裡才能做；測試單作廢、測試品項下架）→ 輸入真實菜單（**勿執行 `import-menu-seed.sh`**）。
 - 程式碼不需修改：網域、密碼皆透過 `.env` 設定；PassPRNT 回呼網址以 `location.origin` 組成，自動使用正式網域。部署步驟見 2026-10-06「正式環境主機與網域選定」紀錄。
