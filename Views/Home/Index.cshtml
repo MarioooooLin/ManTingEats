@@ -5,6 +5,7 @@
 @if (User.Identity?.IsAuthenticated == true)
 {
     // 員工只能使用訂單與訂位（v7），首頁不顯示店長限定功能的卡片
+    // 卡片內按鈕加上 Bootstrap 的 stretched-link：整張卡片都可點擊，iPad 上比只點按鈕好按；按鈕保留作為可點擊的提示
     var isManager = User.IsInRole(AppRoles.Manager);
     <div class="page-header">
         <h1>歡迎回來，@User.Identity.Name</h1>
@@ -18,7 +19,7 @@
                     <div class="card-icon">🧾</div>
                     <h5 class="card-title">訂單</h5>
                     <p class="card-text text-muted">建立內用/外帶訂單、加點、結帳與作廢。</p>
-                    <a asp-controller="Order" asp-action="Index" class="btn btn-primary">前往訂單</a>
+                    <a asp-controller="Order" asp-action="Index" class="btn btn-primary stretched-link">前往訂單</a>
                 </div>
             </div>
         </div>
@@ -30,7 +31,7 @@
                         <div class="card-icon">📋</div>
                         <h5 class="card-title">菜單管理</h5>
                         <p class="card-text text-muted">新增、編輯菜單品項與上下架狀態。</p>
-                        <a asp-controller="Menu" asp-action="Index" class="btn btn-primary">前往菜單管理</a>
+                        <a asp-controller="Menu" asp-action="Index" class="btn btn-primary stretched-link">前往菜單管理</a>
                     </div>
                 </div>
             </div>
@@ -41,7 +42,7 @@
                     <div class="card-icon">📅</div>
                     <h5 class="card-title">訂位記錄</h5>
                     <p class="card-text text-muted">登記與查詢顧客訂位。</p>
-                    <a asp-controller="Reservation" asp-action="Index" class="btn btn-primary">前往訂位記錄</a>
+                    <a asp-controller="Reservation" asp-action="Index" class="btn btn-primary stretched-link">前往訂位記錄</a>
                 </div>
             </div>
         </div>
@@ -53,7 +54,7 @@
                         <div class="card-icon">💰</div>
                         <h5 class="card-title">支出記錄</h5>
                         <p class="card-text text-muted">記錄食材、水電、房租等營運支出。</p>
-                        <a asp-controller="Expense" asp-action="Index" class="btn btn-primary">前往支出記錄</a>
+                        <a asp-controller="Expense" asp-action="Index" class="btn btn-primary stretched-link">前往支出記錄</a>
                     </div>
                 </div>
             </div>
@@ -63,7 +64,7 @@
                         <div class="card-icon">📊</div>
                         <h5 class="card-title">營收報表</h5>
                         <p class="card-text text-muted">查看指定日期區間的營收、通路拆分與品項排行。</p>
-                        <a asp-controller="Report" asp-action="Index" class="btn btn-primary">前往營收報表</a>
+                        <a asp-controller="Report" asp-action="Index" class="btn btn-primary stretched-link">前往營收報表</a>
                     </div>
                 </div>
             </div>

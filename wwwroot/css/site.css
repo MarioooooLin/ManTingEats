@@ -169,6 +169,11 @@ body {
   box-shadow: var(--surface-shadow-md);
 }
 
+/* 整張卡片可點擊（stretched-link）：iPad 沒有滑鼠移過的效果，以按下時微縮給觸控回饋 */
+.dashboard-card:active {
+  transform: translateY(-1px) scale(.99);
+}
+
 .dashboard-card .card-icon {
   width: 44px;
   height: 44px;
