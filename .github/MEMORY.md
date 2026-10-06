@@ -37,6 +37,7 @@
   - 程式位於 `/opt/mantingeats`（`git clone`），`.env` 權限 600；兩組 DB 密碼以 `openssl rand -hex 16` 產生，**第一次啟動後不可再改**（MySQL 只在資料庫初始化時讀取）。網站帳密由使用者自行設定。
   - `docker compose -f docker-compose.prod.yml up -d --build` 後 web／db／caddy 皆 Up，Caddy 已取得 Let's Encrypt 憑證，網站可正常開啟。
   - 更新程式：`cd /opt/mantingeats && git pull && docker compose -f docker-compose.prod.yml up -d --build`（資料存於 Docker volume，Migration 啟動時自動套用）。更新前可先 `sh scripts/backup-db.sh` 手動備份；**挑打烊時段更新**（約中斷 10～60 秒）。
+  - 2026-10-07 01:37（打烊後）更新至 `9e8e8f4`（帳號與權限管理 v7）：更新前手動備份 `mantingeats_20261007_013754.sql`；Migration `AddEmployeeActiveAndSecurityStamp` 套用成功，店長帳號為啟用且已補上戳記；web 無錯誤、重啟次數 0，HTTPS 登入頁 200，未登入進入帳號管理會導向登入。**店長已更換初始密碼**（以密碼雜湊與更新前備份比對確認不同；`.env` 中的初始密碼已失效，僅在資料庫無任何帳號時才會用到）。
   - 2026-10-07 01:12（打烊後）更新至 `4f0d91c`（MySQL 健康檢查）：更新前手動備份 `mantingeats_20261007_011226.sql`；db 以新設定重建並 Healthy，web 重建後無錯誤、重啟次數 0，HTTPS 登入頁 200。
   - SSH：Mac 的公鑰已於 2026-10-07 以 `ssh-copy-id` 加入 VPS 的 `root` 帳號，可用金鑰直接登入（另一台電腦的登入方式未記錄）。VPS 目前仍開放密碼登入。**主機 IP 不寫在公開 repo**（見 Vultr 後台）。
 - **備份（2026-10-06 設定完成）**：每日 **08:00**（台灣時間；店家營業晚餐與消夜，早上無人使用）由 root crontab 執行 `sh /opt/mantingeats/scripts/backup-db.sh >> /opt/mantingeats/backups/backup.log 2>&1`，保留 7 天。腳本在 repo 中無執行權限，故以 `sh` 呼叫；改時區後需 `systemctl restart cron` 才會依台灣時間排程。另開啟 **Vultr 自動備份**（整台主機快照，建議排在 08:00 之後），作為主機外的一層備份；異地備份（低 7）可延後。
@@ -62,7 +63,7 @@
 - 低 7：備份腳本（root 密碼在指令列、未壓縮、未異地備份）——確定雲端主機／資料庫形式後再處理。
 - 低 8：README 與正式部署清單——買主機時一起整理。
 - 隱私權政策聯絡電話、信箱仍為佔位文字（`Views/Home/Privacy.cshtml` 頂端常數）。
-- ~~帳號管理~~：2026-10-07 已完成（v7），見下方紀錄。**部署到正式環境後，店長須立即以「帳號管理 → 變更我的密碼」更換 `.env` 中的初始密碼。**
+- ~~帳號管理~~：2026-10-07 已完成（v7）並部署，店長已更換初始密碼，見下方紀錄。
 
 ### 環境備註
 
@@ -117,7 +118,7 @@
   - 店長不能停用自己。
   - 店長改密碼：目前密碼錯誤會被擋；改完目前裝置保持登入，其他裝置的舊密碼失效。
 - 開發資料庫：admin 密碼已還原為 `123`；留有測試帳號 `staff1`（已停用）。
-- **尚未部署到正式環境**；部署後所有裝置需重新登入一次，並請立即更換初始密碼。
+- 2026-10-07 已部署到正式環境，店長已更換初始密碼（見「正式環境主機與網域」段落）；所有裝置需重新登入一次。
 
 ---
 
