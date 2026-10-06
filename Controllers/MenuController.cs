@@ -150,7 +150,7 @@ public sealed class MenuController : Controller
         _db.AddOns.Add(new AddOn { Name = command.Name, Price = command.Price, IsActive = true });
         await _db.SaveChangesAsync();
         TempData["Success"] = "已新增加料。";
-        return RedirectToAction(nameof(Index));
+        return RedirectToAction(nameof(Index), null, "addons");
     }
 
     [HttpGet]
@@ -184,7 +184,7 @@ public sealed class MenuController : Controller
         addOn.Price = command.Price;
         await _db.SaveChangesAsync();
         TempData["Success"] = "已更新加料。";
-        return RedirectToAction(nameof(Index));
+        return RedirectToAction(nameof(Index), null, "addons");
     }
 
     [HttpPost]
@@ -200,6 +200,6 @@ public sealed class MenuController : Controller
         addOn.IsActive = !addOn.IsActive;
         await _db.SaveChangesAsync();
         TempData["Success"] = addOn.IsActive ? "已上架。" : "已下架。";
-        return RedirectToAction(nameof(Index));
+        return RedirectToAction(nameof(Index), null, "addons");
     }
 }

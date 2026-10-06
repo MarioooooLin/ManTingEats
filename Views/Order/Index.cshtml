@@ -25,7 +25,7 @@ else
                     <th>狀態</th>
                     <th class="text-end">總金額</th>
                     <th>建立時間</th>
-                    <th></th>
+                    <th class="text-end">操作</th>
                 </tr>
             </thead>
             <tbody>
@@ -46,7 +46,7 @@ else
                         <td><span class="badge @badgeClass">@order.Status.ToDisplayText()</span></td>
                         <td class="text-end">$@order.TotalAmount.ToString("F2")</td>
                         <td>@order.CreatedAt.ToLocalTime().ToString("yyyy-MM-dd HH:mm")</td>
-                        <td class="text-end">
+                        <td class="text-end text-nowrap">
                             <a asp-action="Details" asp-route-id="@order.Id" class="btn btn-sm btn-outline-secondary">查看</a>
                         </td>
                     </tr>

@@ -67,7 +67,7 @@ else
                         <td>@expense.Category.ToDisplayText()</td>
                         <td class="text-end">$@expense.Amount.ToString("F2")</td>
                         <td>@expense.Note</td>
-                        <td class="text-end">
+                        <td class="text-end text-nowrap">
                             <a asp-action="Edit" asp-route-id="@expense.Id" class="btn btn-sm btn-outline-secondary">編輯</a>
                             <form asp-action="Delete" asp-route-id="@expense.Id" method="post" class="d-inline" onsubmit="return confirm('確定要刪除此筆支出記錄？此操作無法復原。');">
                                 <button type="submit" class="btn btn-sm btn-outline-danger">刪除</button>
