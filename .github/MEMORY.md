@@ -27,6 +27,12 @@
 
 - 出單模組與結帳找零已完成，接著處理下方「Review 待辦」中標記上線前的項目（列表分頁、隱私權政策聯絡資訊），以及租用 VPS／網域與正式部署。
 
+### 正式環境主機與網域（2026-10-06 決定，尚未購買）
+
+- **VPS：Vultr 東京機房，Regular Cloud Compute 2GB**（1 vCPU / 2GB，約 $10／月）。
+- **網域：Cloudflare Registrar 註冊 `.com`**（成本價約 $10.46／年，續約不漲）。DNS 由 Cloudflare 代管，A 記錄指向 VPS IP，**proxy 設為灰色雲（DNS only）**，讓 Caddy 直接向 Let's Encrypt 申請憑證。
+- 程式碼不需修改：網域、密碼皆透過 `.env` 設定；PassPRNT 回呼網址以 `location.origin` 組成，自動使用正式網域。部署步驟見 2026-10-06「正式環境主機與網域選定」紀錄。
+
 ### 結帳收款與找零（2026-10-04 完成，iPad 實測通過）
 
 - 規格 `docs/prd/v6.md`。結帳改為跳出視窗，須「收剛好」或輸入收款金額（快速金額：下一個整百／$500／$1000 中大於應收者）才能結帳；收款與找零**只在畫面計算，不存資料庫**。
@@ -56,6 +62,32 @@
 - 首次啟動若 web 的 Migration 因 MySQL 尚在初始化而失敗，`docker compose restart web` 即可。
 - 若本機已裝 MySQL 佔用 3306（Mac 那台即是），需先到「系統設定 → MySQL」停用，否則 db 容器無法啟動。
 - GitHub repo 為**公開**，不得 commit 真實資料或機密。
+
+---
+
+### [2026-10-06] 正式環境主機與網域選定：Vultr 東京 + Cloudflare .com
+
+**決策內容**
+
+- VPS：Vultr 東京 Regular Cloud Compute 2GB（1 vCPU / 2GB，約 $10／月）。
+- 網域：Cloudflare Registrar `.com`（約 $10.46／年，續約不漲）。
+
+**決策原因**
+
+- 使用者以 CP 值為主要考量。2026-10 比價（2GB、亞洲機房）：Vultr $10 最低；Lightsail 東京 $12（2 vCPU）、DigitalOcean 僅新加坡 $12、Linode $12；GCP 台灣 e2-small $14.16 且流量另計；Hetzner 2026 年兩次漲價後新加坡最低 €15.49，已不划算。
+- 記憶體選 2GB：MySQL 8 + ASP.NET + Caddy 在 1GB 上吃緊，尖峰卡頓風險不值得省下的 $5。
+- 東京距台灣延遲約數十毫秒，點餐操作無感。
+- 網域僅供店員使用、顧客看不到，不需 .tw；Cloudflare 為成本價且續約不漲。
+- 先前的對話曾討論過主機選擇但未記錄於 repo，換電腦後無從查起，故本次明確記錄。
+
+**部署時待辦（程式碼不需修改）**
+
+1. Cloudflare 註冊網域；DNS 新增 A 記錄指向 VPS IP，**proxy 關閉（灰色雲）**。
+2. Vultr 建立 Ubuntu LTS 主機；防火牆只開 22、80、443；安裝 Docker；建議加 2GB swap（在主機上 `docker compose build` 執行 `dotnet publish` 較吃記憶體）。
+3. `git clone` 後依 `.env.example` 建立 `.env`：`DOMAIN`、`ACME_EMAIL`、DB 兩組密碼、`SEED_ADMIN_PASSWORD` 皆用強密碼。
+4. `docker compose -f docker-compose.prod.yml up -d --build`；確認 Caddy 取得憑證、以網域登入、iPad 出單回呼正常。
+5. 第一次登入後立即更改 admin 密碼；crontab 排程 `scripts/backup-db.sh`（異地備份仍待處理，見 Review 待辦「低 7」）。
+6. 上線前完成：列表分頁、隱私權政策聯絡資訊。
 
 ---
 
