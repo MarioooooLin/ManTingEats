@@ -9,8 +9,10 @@ services:
       SeedAdmin__Password: ${SEED_ADMIN_PASSWORD}
     volumes:
       - dataprotection-keys:/app/keys
+    # 等資料庫健康檢查通過才啟動：網站啟動時會立即執行 Migration，資料庫未就緒會直接失敗退出
     depends_on:
-      - db
+      db:
+        condition: service_healthy
 
   db:
     image: mysql:8.0
@@ -24,6 +26,16 @@ services:
     volumes:
       - mysql-data:/var/lib/mysql
     # 正式環境不對外暴露資料庫連接埠，僅 web 服務透過 Compose 內部網路連線
+    # 以網站實際使用的帳號、經 TCP 連線查詢資料庫才算健康：
+    # MySQL 首次初始化時會先啟動只接受 socket 連線的暫時伺服器，單純 mysqladmin ping 會在此時誤判為就緒。
+    # 密碼取自容器內的環境變數（$$ 讓 Compose 不展開），不寫進健康檢查指令本身。
+    healthcheck:
+      test: ["CMD-SHELL", "MYSQL_PWD=\"$$MYSQL_PASSWORD\" mysql -h 127.0.0.1 -u \"$$MYSQL_USER\" -e 'SELECT 1' \"$$MYSQL_DATABASE\" > /dev/null 2>&1"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 120s
+      start_interval: 2s
 
   caddy:
     image: caddy:2
