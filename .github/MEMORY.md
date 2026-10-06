@@ -27,10 +27,16 @@
 
 - 出單模組與結帳找零已完成，接著處理下方「Review 待辦」中標記上線前的項目（隱私權政策聯絡資訊），以及租用 VPS／網域與正式部署。
 
-### 正式環境主機與網域（2026-10-06 決定，尚未購買）
+### 正式環境主機與網域（2026-10-06 已上線，待實測）
 
 - **VPS：Vultr 東京機房，Regular Cloud Compute 2GB**（1 vCPU / 2GB，約 $10／月）。
-- **網域：Cloudflare Registrar 註冊 `.com`**（成本價約 $10.46／年，續約不漲）。DNS 由 Cloudflare 代管，A 記錄指向 VPS IP，**proxy 設為灰色雲（DNS only）**，讓 Caddy 直接向 Let's Encrypt 申請憑證。
+- **網域：Cloudflare Registrar 註冊 `.com`**（成本價約 $10.46／年，續約不漲）。**2026-10-06 已註冊完成**；網域名稱不寫在公開 repo，部署時填入 VPS 上的 `.env`（`DOMAIN`）。DNS 由 Cloudflare 代管，A 記錄指向 VPS IP，**proxy 設為灰色雲（DNS only）**，讓 Caddy 直接向 Let's Encrypt 申請憑證。
+- **部署完成（2026-10-06）**：
+  - 主機：Ubuntu LTS、時區 Asia/Taipei、Docker 29.8.2／Compose v5.6.0；Vultr 防火牆群組開放 22／80／443；swap 為 Vultr 預建的 5.3GB（不需另加，`fallocate` 會因 swapfile 使用中而失敗）。實際可用記憶體約 1.6GB（系統保留一部分）。
+  - 程式位於 `/opt/mantingeats`（`git clone`），`.env` 權限 600；兩組 DB 密碼以 `openssl rand -hex 16` 產生，**第一次啟動後不可再改**（MySQL 只在資料庫初始化時讀取）。網站帳密由使用者自行設定。
+  - `docker compose -f docker-compose.prod.yml up -d --build` 後 web／db／caddy 皆 Up，Caddy 已取得 Let's Encrypt 憑證，網站可正常開啟。
+  - 更新程式：`cd /opt/mantingeats && git pull && docker compose -f docker-compose.prod.yml up -d --build`（資料存於 Docker volume，Migration 啟動時自動套用）。
+- **下一步**：登入測試 → iPad PassPRNT 出單實測（測試單作廢、測試品項下架）→ 輸入真實菜單（**勿執行 `import-menu-seed.sh`**）→ 討論並設定每日備份 crontab。
 - 程式碼不需修改：網域、密碼皆透過 `.env` 設定；PassPRNT 回呼網址以 `location.origin` 組成，自動使用正式網域。部署步驟見 2026-10-06「正式環境主機與網域選定」紀錄。
 
 ### 結帳收款與找零（2026-10-04 完成，iPad 實測通過）
@@ -52,6 +58,7 @@
 - 低 7：備份腳本（root 密碼在指令列、未壓縮、未異地備份）——確定雲端主機／資料庫形式後再處理。
 - 低 8：README 與正式部署清單——買主機時一起整理。
 - 隱私權政策聯絡電話、信箱仍為佔位文字（`Views/Home/Privacy.cshtml` 頂端常數）。
+- 帳號管理：目前只有 `.env` 建立的單一 admin 帳號，無改密碼、無員工帳號、`EmployeeRole` 未實際使用（任何登入者可做所有操作）。2026-10-06 使用者決定**先以現狀上線，之後再補**。討論過的方案：(A) 以 `.env` 設定多組帳密（`Accounts__0__Username` 等），每次啟動同步，移除即停用（需 `Employee.IsActive` 與 Migration）；(B) 網頁版員工管理與店長／員工權限。上線後若需改密碼，緊急作法為本機產生 `PasswordHasher` 雜湊後直接更新資料庫。 **帳號功能完成後須立即更換正式環境的初始帳密**（初始帳密由使用者自行設定，不記於 repo）。
 
 ### 環境備註
 
@@ -112,7 +119,7 @@
 2. Vultr 建立 Ubuntu LTS 主機；防火牆只開 22、80、443；安裝 Docker；建議加 2GB swap（在主機上 `docker compose build` 執行 `dotnet publish` 較吃記憶體）。
 3. `git clone` 後依 `.env.example` 建立 `.env`：`DOMAIN`、`ACME_EMAIL`、DB 兩組密碼、`SEED_ADMIN_PASSWORD` 皆用強密碼。
 4. `docker compose -f docker-compose.prod.yml up -d --build`；確認 Caddy 取得憑證、以網域登入、iPad 出單回呼正常。
-5. 第一次登入後立即更改 admin 密碼；crontab 排程 `scripts/backup-db.sh`（異地備份仍待處理，見 Review 待辦「低 7」）。
+5. 系統目前**沒有改密碼功能**：admin 密碼即 `.env` 的 `SEED_ADMIN_PASSWORD`，只在第一次啟動（資料庫無任何員工）時建立，之後改 `.env` 不會生效，第一次啟動前務必設為強密碼。crontab 排程 `scripts/backup-db.sh`（時間部署後再討論；異地備份仍待處理，見 Review 待辦「低 7」）。
 6. 上線前完成：隱私權政策聯絡資訊。
 
 ---
