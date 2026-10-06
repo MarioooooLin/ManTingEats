@@ -67,9 +67,35 @@
 - 新電腦：`git clone` → `docker compose up -d --build` → `sh scripts/dev-data/import-menu-seed.sh`（匯入測試菜單）。開發帳號 admin / 123。
 - 本機若只有舊版 .NET SDK（Mac 那台為 7.0），可用 Docker 執行建置與測試：`docker run --rm -v "$PWD":/src -w /src mcr.microsoft.com/dotnet/sdk:9.0 dotnet test tests/ManTingEats.Tests`
 - 開發用 `docker-compose.yml` 未保存 DataProtection 金鑰（正式環境 `docker-compose.prod.yml` 有掛 volume）：每次重建 web 容器，已登入的瀏覽器會被登出，舊頁面送出表單會出現 Anti-Forgery 驗證失敗（400），重新整理／重新登入即可。
-- 首次啟動若 web 的 Migration 因 MySQL 尚在初始化而失敗，`docker compose restart web` 即可。
+- 2026-10-07 起 db 有健康檢查、web 會等 db 就緒才啟動，不再需要手動 `docker compose restart web`。
 - 若本機已裝 MySQL 佔用 3306（Mac 那台即是），需先到「系統設定 → MySQL」停用，否則 db 容器無法啟動。
 - GitHub repo 為**公開**，不得 commit 真實資料或機密。
+
+---
+
+### [2026-10-07] MySQL 健康檢查，web 等資料庫就緒才啟動
+
+**變更內容**
+
+- `docker-compose.yml`、`docker-compose.prod.yml`：
+  - db 新增 `healthcheck`：以網站使用的帳號、經 TCP（`-h 127.0.0.1`）對 `ManTingEatsDb` 執行 `SELECT 1`。
+  - 健康檢查參數：`start_period` 120 秒、`start_interval` 2 秒，之後每 10 秒檢查一次。
+  - web 的 `depends_on` 改為 `condition: service_healthy`。
+
+**決策原因**
+
+- 原本 `depends_on` 只等 db 容器啟動，不等 MySQL 可連線；web 啟動時立即執行 `MigrateAsync()`（只試一次），在 Mac 上兩次出現 `Unable to connect to any of the specified MySQL hosts` 後退出，需手動重啟。正式環境雖有 `restart: unless-stopped` 會自動重試，但會留下錯誤紀錄。
+- 不用 `mysqladmin ping`：MySQL 首次初始化時會先啟動只接受 socket 的暫時伺服器（`port: 0`），socket 版 ping 會在此時誤判就緒；改走 TCP 並實際用應用程式帳號查詢，才代表帳號與資料庫都已建立。
+- 密碼以 `$$` 取用容器內環境變數，不寫進 compose 指令。
+- 已知限制：VPS 重開機時由 Docker daemon 依 restart policy 重啟容器，**不套用** `depends_on` 條件；此情況仍由 web 的 `restart: unless-stopped` 自動重試，最終會正常啟動。健康檢查主要改善 `docker compose up`（部署、更新）時的啟動順序。
+
+**驗證結果**
+
+- 現有開發資料庫：`docker compose down` 後 `up -d`，db Healthy 後 web 才啟動，登入頁 200、無錯誤。
+- 全新資料卷（首次初始化，獨立專案名稱 `mte-healthtest`）：日誌可見暫時伺服器 `port: 0` 階段，健康檢查等到正式伺服器才通過；7 個 Migration 套用成功、無錯誤。
+- 正式環境設定（假密碼、僅 web＋db，專案 `mte-prodtest`）：同樣等 db Healthy 才啟動 web，web 重啟次數 0、無錯誤。
+- 反向檢查：健康檢查指令以正確密碼結束碼 0、錯誤密碼結束碼 1。測試用容器、映像與資料卷皆已清除，開發環境已恢復。
+- **正式環境需在 VPS 執行一次更新指令才會套用**（見「正式環境主機與網域」段落）。
 
 ---
 
