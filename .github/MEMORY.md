@@ -62,7 +62,7 @@
 - 低 7：備份腳本（root 密碼在指令列、未壓縮、未異地備份）——確定雲端主機／資料庫形式後再處理。
 - 低 8：README 與正式部署清單——買主機時一起整理。
 - 隱私權政策聯絡電話、信箱仍為佔位文字（`Views/Home/Privacy.cshtml` 頂端常數）。
-- 帳號管理：目前只有 `.env` 建立的單一 admin 帳號，無改密碼、無員工帳號、`EmployeeRole` 未實際使用（任何登入者可做所有操作）。2026-10-06 使用者決定**先以現狀上線，之後再補**。討論過的方案：(A) 以 `.env` 設定多組帳密（`Accounts__0__Username` 等），每次啟動同步，移除即停用（需 `Employee.IsActive` 與 Migration）；(B) 網頁版員工管理與店長／員工權限。上線後若需改密碼，緊急作法為本機產生 `PasswordHasher` 雜湊後直接更新資料庫。 **帳號功能完成後須立即更換正式環境的初始帳密**（初始帳密由使用者自行設定，不記於 repo）。
+- ~~帳號管理~~：2026-10-07 已完成（v7），見下方紀錄。**部署到正式環境後，店長須立即以「帳號管理 → 變更我的密碼」更換 `.env` 中的初始密碼。**
 
 ### 環境備註
 
@@ -72,6 +72,52 @@
 - 2026-10-07 起 db 有健康檢查、web 會等 db 就緒才啟動，不再需要手動 `docker compose restart web`。
 - 若本機已裝 MySQL 佔用 3306（Mac 那台即是），需先到「系統設定 → MySQL」停用，否則 db 容器無法啟動。
 - GitHub repo 為**公開**，不得 commit 真實資料或機密。
+
+---
+
+### [2026-10-07] 帳號與權限管理（v7）
+
+**變更內容**
+
+- 新增 `docs/prd/v7.md`（已定案）。
+- `Employee` 新增 `IsActive`、`SecurityStamp`；Migration `AddEmployeeActiveAndSecurityStamp`：既有帳號預設啟用，並以 `UUID()` 補上安全戳記。
+- 新增 `Models/Enums/AppRoles.cs`（`[Authorize(Roles)]` 用的角色字串）。
+- 新增 `Services/EmployeeSession.cs`：建立登入身分（含安全戳記），並於 `Program.cs` 的 `OnValidatePrincipal` 每次請求檢查帳號仍啟用、戳記一致。
+- `AccessDeniedPath` 改為新的 `Account/AccessDenied`「沒有權限」頁。
+- `MenuController`、`ExpenseController`、`ReportController` 改為 `[Authorize(Roles = AppRoles.Manager)]`；訂單、訂位維持登入即可使用。
+- `AccountController.Login`：密碼正確但帳號停用時顯示「此帳號已停用，請洽店長」，改用 `EmployeeSession.CreatePrincipal`。
+- 新增 `EmployeeController`（店長限定）與 `Views/Employee/*`：
+  - 帳號列表、新增員工、重設員工密碼、停用／啟用員工。
+  - 變更自己的密碼：需輸入目前密碼，完成後以新戳記重新簽發目前裝置的 Cookie。
+- 新增 `Models/Commands/EmployeeCommands.cs`。三個表單需要 `[Compare]`，而 MVC 不接受 positional record 的屬性驗證，故改用一般 class。
+- 導覽列與首頁卡片：員工看不到菜單管理、支出記錄、營收報表、帳號管理。
+- 新增測試 `AccountTestHost.cs`、`AccountPermissionTests.cs`（25 項）。
+
+**決策原因**
+
+- 使用者決議：
+  - 員工只能用訂單與訂位，可以作廢已結帳訂單。
+  - 只有店長能設定密碼，員工不能自行修改。
+  - 系統只有一個店長，不能新增店長。
+- 帳號不提供刪除：歷史訂單記錄了開單與作廢的操作者，刪除會使紀錄失去對象。店長帳號也不能停用。
+- 安全戳記：讓重設密碼與停用立即對已登入的裝置生效（離職員工的 iPad 不會保持登入）。代價是每次請求多一次以主鍵查詢，單店使用量可忽略。
+- 停用訊息只在密碼正確時顯示，避免未知密碼的人探測帳號狀態。
+- `IsActive` 不在 EF 模型設 `HasDefaultValue(true)`：bool 的 CLR 預設值 false 會被 EF 視為「未設定」，導致停用無法寫入。既有資料的預設值只在 Migration 中設定。
+
+**驗證結果**
+
+- Docker 內 .NET 9 SDK `dotnet test`：121 項全數通過（新增 25 項）。
+- 突變檢查：移除「停用帳號擋登入」與「菜單管理店長限定」，對應測試皆失敗；檢查後已還原。
+- 本機套用 Migration：admin 為啟用、戳記 32 字。
+- 以 curl 走完整流程：
+  - 店長：導覽列 6 項；新增員工成功；重複帳號（不分大小寫）與密碼太短被擋。
+  - 員工：導覽列只有訂單與訂位；進入菜單、支出、報表、帳號管理皆導向「沒有權限」。
+  - 重設員工密碼後，員工原本的登入立即失效，舊密碼不能登入、新密碼可以。
+  - 停用後，員工原本的登入立即失效；正確密碼顯示「已停用」，錯誤密碼只顯示「帳號或密碼錯誤」。
+  - 店長不能停用自己。
+  - 店長改密碼：目前密碼錯誤會被擋；改完目前裝置保持登入，其他裝置的舊密碼失效。
+- 開發資料庫：admin 密碼已還原為 `123`；留有測試帳號 `staff1`（已停用）。
+- **尚未部署到正式環境**；部署後所有裝置需重新登入一次，並請立即更換初始密碼。
 
 ---
 
