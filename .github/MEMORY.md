@@ -25,7 +25,7 @@
 
 ### 下一步建議
 
-- 出單模組與結帳找零已完成，接著處理下方「Review 待辦」中標記上線前的項目（列表分頁、隱私權政策聯絡資訊），以及租用 VPS／網域與正式部署。
+- 出單模組與結帳找零已完成，接著處理下方「Review 待辦」中標記上線前的項目（隱私權政策聯絡資訊），以及租用 VPS／網域與正式部署。
 
 ### 正式環境主機與網域（2026-10-06 決定，尚未購買）
 
@@ -49,7 +49,6 @@
 ### Review 待辦（2026-09-29 全專案 review 後尚未處理）
 
 - 低 2：`DailyNumber` 與 `TotalAmount` 併發競態——單店機率低，先觀察。
-- 低 5：訂單／支出列表無分頁或預設日期範圍——上線前處理。
 - 低 7：備份腳本（root 密碼在指令列、未壓縮、未異地備份）——確定雲端主機／資料庫形式後再處理。
 - 低 8：README 與正式部署清單——買主機時一起整理。
 - 隱私權政策聯絡電話、信箱仍為佔位文字（`Views/Home/Privacy.cshtml` 頂端常數）。
@@ -62,6 +61,33 @@
 - 首次啟動若 web 的 Migration 因 MySQL 尚在初始化而失敗，`docker compose restart web` 即可。
 - 若本機已裝 MySQL 佔用 3306（Mac 那台即是），需先到「系統設定 → MySQL」停用，否則 db 容器無法啟動。
 - GitHub repo 為**公開**，不得 commit 真實資料或機密。
+
+---
+
+### [2026-10-06] 訂單、支出與訂位列表分頁
+
+**變更內容**
+
+- 新增 `Models/PagedList.cs`（`PagedList<T>` 與非泛型 `IPagination`）：每頁 20 筆，頁碼超出範圍時夾回第一頁／最後一頁。
+- 新增 `Views/Shared/_Pagination.cshtml`：Bootstrap 分頁列（上一頁／頁碼／下一頁，目前頁前後各 2 頁），換頁時保留其他查詢參數；只有一頁時不顯示。
+- `OrderController.Index`：改為分頁，排序改為**未結帳訂單優先**，其餘依建立時間新到舊。
+- `ExpenseController.Index`：改為分頁；支出總額改以 `SumAsync` 加總所有符合條件的資料（非僅目前頁）。`ExpenseSearchViewModel.Results` 改為 `PagedList<Expense>`。
+- `ReservationController.Index`：改為分頁；未指定姓名與日期時**只列今天以後**的訂位（依時段先後），畫面提示「查詢過去的訂位請輸入姓名或選擇日期」；只依姓名查詢時涵蓋過去訂位、最近的排前面。`ReservationSearchViewModel` 新增 `UpcomingOnly`，`Results` 改為 `PagedList<Reservation>`。
+- 新增 `PaginationTests`（6 項）、`ReservationControllerTests` 新增列表篩選測試（3 項）。
+
+**決策原因**
+
+- 處理 Review 待辦「低 5」：資料逐年累積後一次載入全部會越來越慢。選擇分頁而非預設日期範圍，不改變使用者目前的查詢習慣。
+- 訂位原本由舊到新全部列出，一年後打開會先看到一年前的訂位；使用者選擇（2026-10-06）預設只顯示今天以後＋分頁。依姓名查詢仍涵蓋過去，因為顧客請求刪除個資時要找得到舊資料。
+- 訂單原本只依建立時間排序；分頁後忙碌時較早開的未結帳單會被擠到第二頁而漏結帳，故未結帳單一律置頂。
+- 排序最後加上 `Id`，確保同時間的資料換頁時不重複、不遺漏。
+- Razor 注意：`@page` 是指令保留字，迴圈變數不可命名為 `page`。
+
+**驗證結果**
+
+- `dotnet test`：96 項全數通過。
+- 本機 MySQL 暫時插入 25 筆測試支出驗證：第 1 頁 20 筆、第 2 頁 7 筆，兩頁的支出總額皆為全部加總；加上分類條件換頁時條件保留。測試資料驗證後已刪除。
+- 本機以 curl 確認訂位列表：預設顯示今天以後的訂位與提示文字；依姓名查詢、依過去日期查詢皆正常。
 
 ---
 
@@ -87,7 +113,7 @@
 3. `git clone` 後依 `.env.example` 建立 `.env`：`DOMAIN`、`ACME_EMAIL`、DB 兩組密碼、`SEED_ADMIN_PASSWORD` 皆用強密碼。
 4. `docker compose -f docker-compose.prod.yml up -d --build`；確認 Caddy 取得憑證、以網域登入、iPad 出單回呼正常。
 5. 第一次登入後立即更改 admin 密碼；crontab 排程 `scripts/backup-db.sh`（異地備份仍待處理，見 Review 待辦「低 7」）。
-6. 上線前完成：列表分頁、隱私權政策聯絡資訊。
+6. 上線前完成：隱私權政策聯絡資訊。
 
 ---
 
