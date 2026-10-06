@@ -38,6 +38,8 @@ public sealed class ReportController : Controller
             .Where(o => o.Status == OrderStatus.Completed && o.CompletedAt >= startUtc && o.CompletedAt < endExclusiveUtc)
             .Include(o => o.Items)
                 .ThenInclude(i => i.MenuItem)
+            .Include(o => o.Items)
+                .ThenInclude(i => i.AddOns)
             .ToListAsync();
 
         var totalRevenue = completedOrders.Sum(o => o.TotalAmount);
@@ -59,6 +61,16 @@ public sealed class ReportController : Controller
             .OrderByDescending(i => i.Amount)
             .ToList();
 
+        // 加料以下單當下的名稱快照分組，加料日後改名或停用仍對得上歷史金額；
+        // 金額算法與 OrderController.ComputeTotal 一致，品項與加料兩張排行相加才會等於總營收
+        var addOnRanking = completedOrders
+            .SelectMany(o => o.Items)
+            .SelectMany(i => i.AddOns)
+            .GroupBy(a => a.AddOnName)
+            .Select(g => new AddOnSales(g.Key, g.Sum(a => a.Quantity), g.Sum(a => a.UnitPrice * a.Quantity)))
+            .OrderByDescending(a => a.Amount)
+            .ToList();
+
         return View(new ReportViewModel
         {
             StartDate = startDate,
@@ -66,7 +78,8 @@ public sealed class ReportController : Controller
             TotalRevenue = totalRevenue,
             TotalExpense = totalExpense,
             ChannelBreakdown = channelBreakdown,
-            ItemRanking = itemRanking
+            ItemRanking = itemRanking,
+            AddOnRanking = addOnRanking
         });
     }
 }

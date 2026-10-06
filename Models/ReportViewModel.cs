@@ -6,6 +6,8 @@ public sealed record ChannelRevenue(OrderChannel Channel, decimal Amount);
 
 public sealed record MenuItemSales(string MenuItemName, int Quantity, decimal Amount);
 
+public sealed record AddOnSales(string AddOnName, int Quantity, decimal Amount);
+
 public sealed class ReportViewModel
 {
     public required DateTime StartDate { get; init; }
@@ -14,5 +16,7 @@ public sealed class ReportViewModel
     public required decimal TotalExpense { get; init; }
     public decimal NetProfit => TotalRevenue - TotalExpense;
     public required List<ChannelRevenue> ChannelBreakdown { get; init; }
+    /// <summary>品項本身的銷售（不含加料），加料另列於 <see cref="AddOnRanking"/>，兩者相加即為總營收。</summary>
     public required List<MenuItemSales> ItemRanking { get; init; }
+    public required List<AddOnSales> AddOnRanking { get; init; }
 }

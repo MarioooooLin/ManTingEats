@@ -98,8 +98,8 @@
     </div>
 </div>
 
-<div class="card">
-    <div class="card-header">品項銷售排行（依金額排序）</div>
+<div class="card mb-4">
+    <div class="card-header">品項銷售排行（依金額排序，不含加料）</div>
     <div class="table-responsive">
     <table class="table table-hover mb-0">
         <thead>
@@ -120,6 +120,35 @@
                     <td>@item.MenuItemName</td>
                     <td class="text-end">@item.Quantity</td>
                     <td class="text-end">$@item.Amount.ToString("F2")</td>
+                </tr>
+            }
+        </tbody>
+    </table>
+    </div>
+</div>
+
+<div class="card">
+    <div class="card-header">加料銷售排行（依金額排序）</div>
+    <div class="table-responsive">
+    <table class="table table-hover mb-0">
+        <thead>
+            <tr>
+                <th>加料</th>
+                <th class="text-end">銷售數量</th>
+                <th class="text-end">銷售金額</th>
+            </tr>
+        </thead>
+        <tbody>
+            @if (Model.AddOnRanking.Count == 0)
+            {
+                <tr><td colspan="3" class="text-muted text-center py-3">此區間無加料銷售資料</td></tr>
+            }
+            @foreach (var addOn in Model.AddOnRanking)
+            {
+                <tr>
+                    <td>@addOn.AddOnName</td>
+                    <td class="text-end">@addOn.Quantity</td>
+                    <td class="text-end">$@addOn.Amount.ToString("F2")</td>
                 </tr>
             }
         </tbody>
