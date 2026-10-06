@@ -1,0 +1,62 @@
+@model List<ManTingEats.Models.Entities.Employee>
+@{
+    ViewData["Title"] = "帳號管理";
+}
+
+<div class="page-header d-flex justify-content-between align-items-center flex-wrap gap-2">
+    <h1 class="mb-0">帳號管理</h1>
+    <div class="d-flex gap-2">
+        <a asp-action="ChangePassword" class="btn btn-outline-secondary">變更我的密碼</a>
+        <a asp-action="Create" class="btn btn-primary">+ 新增員工</a>
+    </div>
+</div>
+
+<div class="card">
+    <div class="table-responsive">
+        <table class="table table-hover mb-0">
+            <thead>
+                <tr>
+                    <th>帳號</th>
+                    <th>角色</th>
+                    <th>狀態</th>
+                    <th>建立時間</th>
+                    <th class="text-end">操作</th>
+                </tr>
+            </thead>
+            <tbody>
+                @foreach (var employee in Model)
+                {
+                    var isManager = employee.Role == EmployeeRole.Manager;
+                    <tr>
+                        <td>@employee.Username</td>
+                        <td><span class="badge @(isManager ? "badge-soft-primary" : "badge-soft-info")">@employee.Role.ToDisplayText()</span></td>
+                        <td>
+                            <span class="badge @(employee.IsActive ? "badge-soft-success" : "badge-soft-secondary")">
+                                @(employee.IsActive ? "啟用中" : "已停用")
+                            </span>
+                        </td>
+                        <td>@employee.CreatedAt.ToLocalTime().ToString("yyyy-MM-dd")</td>
+                        <td class="text-end text-nowrap">
+                            @* 系統只有一個店長：店長帳號不能停用，改密碼請用上方「變更我的密碼」 *@
+                            @if (!isManager)
+                            {
+                                <a asp-action="ResetPassword" asp-route-id="@employee.Id" class="btn btn-sm btn-outline-secondary">重設密碼</a>
+                                @* 確認訊息不帶入帳號名稱：避免名稱中的引號破壞 onsubmit 內的 JavaScript 字串 *@
+                                <form asp-action="ToggleActive" asp-route-id="@employee.Id" method="post" class="d-inline"
+                                      onsubmit="@(employee.IsActive ? "return confirm('確定要停用此帳號？該帳號已登入的裝置會立即被登出。');" : "")">
+                                    <button type="submit" class="btn btn-sm @(employee.IsActive ? "btn-outline-danger" : "btn-outline-success")">
+                                        @(employee.IsActive ? "停用" : "啟用")
+                                    </button>
+                                </form>
+                            }
+                        </td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<p class="text-muted small mt-3">
+    ℹ️ 員工只能使用「訂單」與「訂位記錄」；帳號不提供刪除，離職員工請改為停用（歷史訂單仍保留操作者紀錄）。
+</p>

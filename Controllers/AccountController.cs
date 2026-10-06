@@ -1,7 +1,7 @@
-using System.Security.Claims;
 using ManTingEats.Data;
 using ManTingEats.Models;
 using ManTingEats.Models.Entities;
+using ManTingEats.Services;
 using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Authentication.Cookies;
 using Microsoft.AspNetCore.Identity;
@@ -73,14 +73,14 @@ public sealed class AccountController : Controller
 
         _cache.Remove(lockoutKey);
 
-        var claims = new List<Claim>
+        // 密碼正確才告知帳號已停用，避免未知密碼的人藉此探測帳號狀態
+        if (!employee.IsActive)
         {
-            new(ClaimTypes.NameIdentifier, employee.Id.ToString()),
-            new(ClaimTypes.Name, employee.Username),
-            new(ClaimTypes.Role, employee.Role.ToString())
-        };
-        var identity = new ClaimsIdentity(claims, CookieAuthenticationDefaults.AuthenticationScheme);
-        await HttpContext.SignInAsync(CookieAuthenticationDefaults.AuthenticationScheme, new ClaimsPrincipal(identity));
+            ModelState.AddModelError(string.Empty, "此帳號已停用，請洽店長。");
+            return View(model);
+        }
+
+        await HttpContext.SignInAsync(CookieAuthenticationDefaults.AuthenticationScheme, EmployeeSession.CreatePrincipal(employee));
 
         if (Url.IsLocalUrl(returnUrl))
         {
@@ -89,6 +89,10 @@ public sealed class AccountController : Controller
 
         return RedirectToAction("Index", "Home");
     }
+
+    /// <summary>員工進入店長限定功能時的提示頁（Cookie 驗證的 AccessDeniedPath）。</summary>
+    [HttpGet]
+    public IActionResult AccessDenied() => View();
 
     [HttpPost]
     [ValidateAntiForgeryToken]

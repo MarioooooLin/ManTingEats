@@ -37,4 +37,11 @@ public static class EnumDisplayExtensions
         MenuCategory.Other => "其他",
         _ => category.ToString()
     };
+
+    public static string ToDisplayText(this EmployeeRole role) => role switch
+    {
+        EmployeeRole.Manager => "店長",
+        EmployeeRole.Staff => "員工",
+        _ => role.ToString()
+    };
 }

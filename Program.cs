@@ -3,6 +3,7 @@ using ManTingEats.Controllers;
 using ManTingEats.Data;
 using ManTingEats.Models.Entities;
 using ManTingEats.Services;
+using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Authentication.Cookies;
 using Microsoft.AspNetCore.DataProtection;
 using Microsoft.AspNetCore.HttpOverrides;
@@ -46,12 +47,23 @@ builder.Services.AddAuthentication(CookieAuthenticationDefaults.AuthenticationSc
     .AddCookie(options =>
     {
         options.LoginPath = "/Account/Login";
-        options.AccessDeniedPath = "/Account/Login";
+        // 已登入但角色不足（員工進入店長功能）時顯示「沒有權限」，而非導回登入頁造成困惑
+        options.AccessDeniedPath = "/Account/AccessDenied";
         options.Cookie.HttpOnly = true;
         options.Cookie.SecurePolicy = CookieSecurePolicy.SameAsRequest;
         options.Cookie.SameSite = SameSiteMode.Strict;
         options.ExpireTimeSpan = TimeSpan.FromHours(8);
         options.SlidingExpiration = true;
+        // 停用帳號或重設密碼後，讓已登入的裝置在下一次請求就被登出（見 EmployeeSession.IsValidAsync）
+        options.Events.OnValidatePrincipal = async context =>
+        {
+            var db = context.HttpContext.RequestServices.GetRequiredService<AppDbContext>();
+            if (context.Principal is null || !await EmployeeSession.IsValidAsync(context.Principal, db))
+            {
+                context.RejectPrincipal();
+                await context.HttpContext.SignOutAsync(CookieAuthenticationDefaults.AuthenticationScheme);
+            }
+        };
     });
 builder.Services.AddAuthorization();
 

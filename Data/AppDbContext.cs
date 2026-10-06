@@ -24,6 +24,7 @@ public sealed class AppDbContext : DbContext
         {
             entity.HasIndex(e => e.Username).IsUnique();
             entity.Property(e => e.Username).HasMaxLength(50);
+            entity.Property(e => e.SecurityStamp).HasMaxLength(64);
         });
 
         modelBuilder.Entity<MenuItem>(entity =>

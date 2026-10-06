@@ -1,0 +1,43 @@
+@model ManTingEats.Models.Commands.CreateEmployeeCommand
+@{
+    ViewData["Title"] = "新增員工";
+}
+
+<div class="page-header">
+    <h1>新增員工</h1>
+</div>
+
+<div class="row">
+    <div class="col-md-5">
+        <div class="card">
+            <div class="card-body">
+                <form asp-action="Create" method="post">
+                    <div asp-validation-summary="ModelOnly" class="text-danger"></div>
+                    <div class="mb-3">
+                        <label asp-for="Username" class="form-label"></label>
+                        <input asp-for="Username" class="form-control" autocomplete="off" autocapitalize="none" autofocus />
+                        <span asp-validation-for="Username" class="text-danger"></span>
+                        <div class="form-text">3～50 字，建立後不可修改。</div>
+                    </div>
+                    <div class="mb-3">
+                        <label asp-for="Password" class="form-label"></label>
+                        <input asp-for="Password" type="password" class="form-control" autocomplete="new-password" />
+                        <span asp-validation-for="Password" class="text-danger"></span>
+                    </div>
+                    <div class="mb-3">
+                        <label asp-for="ConfirmPassword" class="form-label"></label>
+                        <input asp-for="ConfirmPassword" type="password" class="form-control" autocomplete="new-password" />
+                        <span asp-validation-for="ConfirmPassword" class="text-danger"></span>
+                    </div>
+                    <div class="small text-muted mb-3">ℹ️ 員工只能使用「訂單」與「訂位記錄」；密碼請當面告知員工。</div>
+                    <button type="submit" class="btn btn-primary">儲存</button>
+                    <a asp-action="Index" class="btn btn-outline-secondary">取消</a>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+    <partial name="_ValidationScriptsPartial" />
+}

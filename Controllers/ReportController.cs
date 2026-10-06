@@ -8,7 +8,8 @@ using Microsoft.EntityFrameworkCore;
 
 namespace ManTingEats.Controllers;
 
-[Authorize]
+// 店長限定（v7）：員工只能使用訂單與訂位
+[Authorize(Roles = AppRoles.Manager)]
 public sealed class ReportController : Controller
 {
     private readonly AppDbContext _db;

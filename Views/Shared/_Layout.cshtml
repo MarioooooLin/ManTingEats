@@ -1,5 +1,7 @@
 ﻿@{
     var currentController = ViewContext.RouteData.Values["controller"]?.ToString();
+    // 只是隱藏連結；權限實際由各 Controller 的 [Authorize(Roles = AppRoles.Manager)] 把關
+    var isManager = User.IsInRole(AppRoles.Manager);
 }
 <!DOCTYPE html>
 <html lang="zh-Hant">
@@ -31,18 +33,27 @@
                             <li class="nav-item">
                                 <a class="nav-link text-dark @(currentController == "Order" ? "active" : "")" asp-area="" asp-controller="Order" asp-action="Index">訂單</a>
                             </li>
-                            <li class="nav-item">
-                                <a class="nav-link text-dark @(currentController == "Menu" ? "active" : "")" asp-area="" asp-controller="Menu" asp-action="Index">菜單管理</a>
-                            </li>
+                            @if (isManager)
+                            {
+                                <li class="nav-item">
+                                    <a class="nav-link text-dark @(currentController == "Menu" ? "active" : "")" asp-area="" asp-controller="Menu" asp-action="Index">菜單管理</a>
+                                </li>
+                            }
                             <li class="nav-item">
                                 <a class="nav-link text-dark @(currentController == "Reservation" ? "active" : "")" asp-area="" asp-controller="Reservation" asp-action="Index">訂位記錄</a>
                             </li>
-                            <li class="nav-item">
-                                <a class="nav-link text-dark @(currentController == "Expense" ? "active" : "")" asp-area="" asp-controller="Expense" asp-action="Index">支出記錄</a>
-                            </li>
-                            <li class="nav-item">
-                                <a class="nav-link text-dark @(currentController == "Report" ? "active" : "")" asp-area="" asp-controller="Report" asp-action="Index">營收報表</a>
-                            </li>
+                            @if (isManager)
+                            {
+                                <li class="nav-item">
+                                    <a class="nav-link text-dark @(currentController == "Expense" ? "active" : "")" asp-area="" asp-controller="Expense" asp-action="Index">支出記錄</a>
+                                </li>
+                                <li class="nav-item">
+                                    <a class="nav-link text-dark @(currentController == "Report" ? "active" : "")" asp-area="" asp-controller="Report" asp-action="Index">營收報表</a>
+                                </li>
+                                <li class="nav-item">
+                                    <a class="nav-link text-dark @(currentController == "Employee" ? "active" : "")" asp-area="" asp-controller="Employee" asp-action="Index">帳號管理</a>
+                                </li>
+                            }
                         }
                     </ul>
                     <ul class="navbar-nav">
