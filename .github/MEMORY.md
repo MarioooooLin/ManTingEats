@@ -37,6 +37,7 @@
   - 程式位於 `/opt/mantingeats`（`git clone`），`.env` 權限 600；兩組 DB 密碼以 `openssl rand -hex 16` 產生，**第一次啟動後不可再改**（MySQL 只在資料庫初始化時讀取）。網站帳密由使用者自行設定。
   - `docker compose -f docker-compose.prod.yml up -d --build` 後 web／db／caddy 皆 Up，Caddy 已取得 Let's Encrypt 憑證，網站可正常開啟。
   - 更新程式：`cd /opt/mantingeats && git pull && docker compose -f docker-compose.prod.yml up -d --build`（資料存於 Docker volume，Migration 啟動時自動套用）。更新前可先 `sh scripts/backup-db.sh` 手動備份；**挑打烊時段更新**（約中斷 10～60 秒）。
+  - 2026-10-07 02:24 更新至 `84295b8`（首頁卡片整張可點擊，僅畫面、無 Migration，未另行備份）：web 無錯誤、重啟次數 0，HTTPS 登入頁 200，新版 CSS 已生效。
   - 2026-10-07 02:18（打烊後）更新至 `0b56094`（結帳折扣 v8）：更新前手動備份 `mantingeats_20261007_021803.sql`；Migration `AddOrderDiscount` 套用成功，既有訂單折扣皆為 0；web 無錯誤、重啟次數 0，HTTPS 登入頁 200。
   - 2026-10-07 01:37（打烊後）更新至 `9e8e8f4`（帳號與權限管理 v7）：更新前手動備份 `mantingeats_20261007_013754.sql`；Migration `AddEmployeeActiveAndSecurityStamp` 套用成功，店長帳號為啟用且已補上戳記；web 無錯誤、重啟次數 0，HTTPS 登入頁 200，未登入進入帳號管理會導向登入。**店長已更換初始密碼**（以密碼雜湊與更新前備份比對確認不同；`.env` 中的初始密碼已失效，僅在資料庫無任何帳號時才會用到）。
   - 2026-10-07 01:12（打烊後）更新至 `4f0d91c`（MySQL 健康檢查）：更新前手動備份 `mantingeats_20261007_011226.sql`；db 以新設定重建並 Healthy，web 重建後無錯誤、重啟次數 0，HTTPS 登入頁 200。
