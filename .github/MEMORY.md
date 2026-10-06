@@ -37,6 +37,7 @@
   - 程式位於 `/opt/mantingeats`（`git clone`），`.env` 權限 600；兩組 DB 密碼以 `openssl rand -hex 16` 產生，**第一次啟動後不可再改**（MySQL 只在資料庫初始化時讀取）。網站帳密由使用者自行設定。
   - `docker compose -f docker-compose.prod.yml up -d --build` 後 web／db／caddy 皆 Up，Caddy 已取得 Let's Encrypt 憑證，網站可正常開啟。
   - 更新程式：`cd /opt/mantingeats && git pull && docker compose -f docker-compose.prod.yml up -d --build`（資料存於 Docker volume，Migration 啟動時自動套用）。更新前可先 `sh scripts/backup-db.sh` 手動備份；**挑打烊時段更新**（約中斷 10～60 秒）。
+  - 2026-10-07 02:18（打烊後）更新至 `0b56094`（結帳折扣 v8）：更新前手動備份 `mantingeats_20261007_021803.sql`；Migration `AddOrderDiscount` 套用成功，既有訂單折扣皆為 0；web 無錯誤、重啟次數 0，HTTPS 登入頁 200。
   - 2026-10-07 01:37（打烊後）更新至 `9e8e8f4`（帳號與權限管理 v7）：更新前手動備份 `mantingeats_20261007_013754.sql`；Migration `AddEmployeeActiveAndSecurityStamp` 套用成功，店長帳號為啟用且已補上戳記；web 無錯誤、重啟次數 0，HTTPS 登入頁 200，未登入進入帳號管理會導向登入。**店長已更換初始密碼**（以密碼雜湊與更新前備份比對確認不同；`.env` 中的初始密碼已失效，僅在資料庫無任何帳號時才會用到）。
   - 2026-10-07 01:12（打烊後）更新至 `4f0d91c`（MySQL 健康檢查）：更新前手動備份 `mantingeats_20261007_011226.sql`；db 以新設定重建並 Healthy，web 重建後無錯誤、重啟次數 0，HTTPS 登入頁 200。
   - SSH：Mac 的公鑰已於 2026-10-07 以 `ssh-copy-id` 加入 VPS 的 `root` 帳號，可用金鑰直接登入（另一台電腦的登入方式未記錄）。VPS 目前仍開放密碼登入。**主機 IP 不寫在公開 repo**（見 Vultr 後台）。
@@ -73,6 +74,25 @@
 - 2026-10-07 起 db 有健康檢查、web 會等 db 就緒才啟動，不再需要手動 `docker compose restart web`。
 - 若本機已裝 MySQL 佔用 3306（Mac 那台即是），需先到「系統設定 → MySQL」停用，否則 db 容器無法啟動。
 - GitHub repo 為**公開**，不得 commit 真實資料或機密。
+
+---
+
+### [2026-10-07] 首頁功能卡片整張可點擊
+
+**變更內容**
+
+- `Views/Home/Index.cshtml`：五張功能卡片的按鈕加上 Bootstrap `stretched-link`，點卡片任何位置都會進入該功能；按鈕保留作為可點擊的提示。登入前首頁的「前往登入」不受影響。
+- `wwwroot/css/site.css`：新增 `.dashboard-card:active` 按下時微縮效果。
+
+**決策原因**
+
+- 使用者反映只能點卡片內的按鈕不夠直觀；iPad 上整張卡片比小按鈕好按。
+- 用 `stretched-link` 不需額外 JavaScript，且連結仍是單一 `<a>`，鍵盤與螢幕閱讀器行為不變。
+- iPad 沒有滑鼠移過的浮起效果，改以按下時的回饋提示可點擊。
+
+**驗證結果**
+
+- 以 puppeteer-core 驅動 Chrome 點擊五張卡片的說明文字與圖示，皆導向正確頁面（訂單、菜單管理、訂位記錄、支出記錄、營收報表）；未登入首頁沒有被延伸的連結。
 
 ---
 
@@ -125,7 +145,7 @@
   - 報表：原價合計 $1,948、折扣 $543、總營收 $1,405。
   - 小數：折數 8.5、改收 450.5、收款 500.5 皆停用送出並提示；改為整數後正常結帳。
 - 測試建立的「E2E折扣測試品」已下架；開發資料庫留有數張測試訂單。
-- 尚未部署到正式環境。
+- 2026-10-07 已部署到正式環境（見「正式環境主機與網域」段落）。
 
 ---
 
