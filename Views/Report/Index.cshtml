@@ -1,7 +1,8 @@
 @model ManTingEats.Models.ReportViewModel
 @{
     ViewData["Title"] = "營收報表";
-    var today = ManTingEats.Services.TaipeiTime.Today;
+    // 快捷按鈕以營業日為準：凌晨按「今日」仍顯示前一晚開始的營業日
+    var today = ManTingEats.Services.TaipeiTime.BusinessToday;
     var weekStart = today.AddDays(-(int)today.DayOfWeek + (today.DayOfWeek == DayOfWeek.Sunday ? -6 : 1));
     var monthStart = new DateTime(today.Year, today.Month, 1);
 }

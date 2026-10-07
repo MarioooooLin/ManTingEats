@@ -120,4 +120,28 @@ public class AmountValidationTests
 
         Assert.Equal(new DateTime(2026, 9, 28, 16, 0, 0), startUtc);
     }
+
+    // 營業 17:00–02:00 跨午夜：06:00 前仍屬前一天的營業日，單號與報表才不會在午夜被切開（v9）
+    [Theory]
+    [InlineData(2026, 10, 8, 17, 0, 8)]
+    [InlineData(2026, 10, 8, 23, 59, 8)]
+    [InlineData(2026, 10, 9, 0, 0, 8)]
+    [InlineData(2026, 10, 9, 1, 30, 8)]
+    [InlineData(2026, 10, 9, 5, 59, 8)]
+    [InlineData(2026, 10, 9, 6, 0, 9)]
+    public void TaipeiTime_BusinessDateOf_SwitchesAt0600(int year, int month, int day, int hour, int minute, int expectedDay)
+    {
+        var businessDate = TaipeiTime.BusinessDateOf(new DateTime(year, month, day, hour, minute, 0));
+
+        Assert.Equal(new DateTime(2026, 10, expectedDay), businessDate);
+    }
+
+    [Fact]
+    public void TaipeiTime_BusinessDayStartUtc_IsSameDay2200UtcOfPreviousDay()
+    {
+        // 台灣 10/8 06:00 = UTC 10/7 22:00
+        var startUtc = TaipeiTime.BusinessDayStartUtc(new DateTime(2026, 10, 8));
+
+        Assert.Equal(new DateTime(2026, 10, 7, 22, 0, 0), startUtc);
+    }
 }

@@ -21,8 +21,8 @@ public sealed class ReportController : Controller
 
     public async Task<IActionResult> Index(DateTime? start, DateTime? end)
     {
-        var startDate = (start ?? TaipeiTime.Today).Date;
-        var endDate = (end ?? TaipeiTime.Today).Date;
+        var startDate = (start ?? TaipeiTime.BusinessToday).Date;
+        var endDate = (end ?? TaipeiTime.BusinessToday).Date;
         if (endDate < startDate)
         {
             (startDate, endDate) = (endDate, startDate);
@@ -30,9 +30,9 @@ public sealed class ReportController : Controller
 
         var endExclusive = endDate.AddDays(1);
 
-        // CompletedAt 存 UTC，需將台灣營業日邊界換算為 UTC 再比對，否則 00:00–08:00 結帳的訂單會被算到前一天
-        var startUtc = TaipeiTime.StartOfDayUtc(startDate);
-        var endExclusiveUtc = TaipeiTime.StartOfDayUtc(endExclusive);
+        // CompletedAt 存 UTC，需將台灣營業日邊界換算為 UTC 再比對；營業日以 06:00 切換（v9），凌晨結帳的訂單算進前一晚的營業日
+        var startUtc = TaipeiTime.BusinessDayStartUtc(startDate);
+        var endExclusiveUtc = TaipeiTime.BusinessDayStartUtc(endExclusive);
 
         // 報表僅計入已結帳訂單，不含已作廢訂單
         var completedOrders = await _db.Orders

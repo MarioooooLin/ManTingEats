@@ -86,14 +86,14 @@ public sealed class OrderController : Controller
         return RedirectToAction(nameof(Details), new { id = order.Id });
     }
 
-    /// <summary>以台灣時區（而非容器系統時區）判斷「今天」的邊界，計算當日下一個流水號。</summary>
+    /// <summary>以台灣時區的營業日（06:00 切換，v9）判斷邊界，計算本營業日下一個流水號；跨午夜營業時單號不會歸零。</summary>
     private async Task<int> GetNextDailyNumberAsync()
     {
-        var todayStartUtc = TaipeiTime.StartOfDayUtc(TaipeiTime.Today);
-        var todayEndUtc = todayStartUtc.AddDays(1);
+        var dayStartUtc = TaipeiTime.BusinessDayStartUtc(TaipeiTime.BusinessToday);
+        var dayEndUtc = dayStartUtc.AddDays(1);
 
         var maxDailyNumber = await _db.Orders
-            .Where(o => o.CreatedAt >= todayStartUtc && o.CreatedAt < todayEndUtc)
+            .Where(o => o.CreatedAt >= dayStartUtc && o.CreatedAt < dayEndUtc)
             .Select(o => (int?)o.DailyNumber)
             .MaxAsync();
 
