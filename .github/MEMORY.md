@@ -88,6 +88,28 @@
 
 ---
 
+### [2026-10-09] 全站金額改為整數顯示
+
+**變更內容**
+
+- `Views/Order/Details.cshtml`、`Views/Order/Index.cshtml`、`Views/Menu/Index.cshtml`、`Views/Report/Index.cshtml`、`Views/Expense/Index.cshtml`：金額 `ToString("F2")` 全改為 `ToString("F0")`（22 處，含點餐頁品項／加料的 `data-price`，品項的會用於面板標題）。
+- `Views/Menu/Edit.cshtml`、`Views/Menu/EditAddOn.cshtml`、`Views/Expense/Edit.cshtml`：金額輸入框加上 `asp-format="{0:F0}"`，編輯時預設值顯示 `90` 而非 `90.00`。
+
+**決策原因**
+
+- 使用者反映加料金額不需要小數點。售價、加價、支出皆有 `WholeAmount` 驗證，折扣後金額也須為整數，`.00` 永遠為零只佔空間。
+- 全站一起改（使用者決定）：出單、結帳視窗、點餐面板小計原本就是整數，只改加料會讓同一畫面混用兩種格式。
+- 不加千分位（使用者決定），與出單一致。
+- 僅改顯示，資料庫欄位維持 `decimal(10,2)`，不需 Migration。
+
+**驗證結果**
+
+- 本機以 curl 檢查訂單列表、點餐、菜單管理、營收報表、支出記錄，`$xx.xx` 格式皆為 0 筆。
+- 以 puppeteer-core 驅動 Chrome：點餐面板標題 `菜2（$90）`、加料 `+$10`，小計 $90 → $100 → $110 → $330 計算正常。
+- 編輯品項／加料輸入框顯示 `90`／`10`；加料以整數送出存檔正常。建立測試支出 1234 → 編輯頁顯示 `1234` → 改為 1500 存檔正常 → 刪除測試資料。
+
+---
+
 ### [2026-10-09] 停用 iPad 點兩下放大
 
 **變更內容**
