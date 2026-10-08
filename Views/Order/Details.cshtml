@@ -676,6 +676,19 @@
             });
         });
 
+        // iPad 上手指容易按在加料列的空白處，因此整列都可切換勾選；
+        // 點到 checkbox／文字（label）時瀏覽器本身就會切換，點到數量 +/− 則不應改變勾選，兩者皆略過
+        document.querySelectorAll('.addon-row').forEach(function (row) {
+            row.addEventListener('click', function (event) {
+                if (event.target.closest('.addon-qty-stepper, .addon-checkbox, label')) {
+                    return;
+                }
+                var cb = row.querySelector('.addon-checkbox');
+                cb.checked = !cb.checked;
+                cb.dispatchEvent(new Event('change'));
+            });
+        });
+
         document.querySelectorAll('.addon-qty-input').forEach(function (input) {
             input.addEventListener('input', updateCustomizeSubtotalFromForm);
         });

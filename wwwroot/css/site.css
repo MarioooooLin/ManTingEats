@@ -267,7 +267,34 @@ body {
   background: var(--brand-primary-light);
 }
 
+/* 整列可點選切換加料（Details.cshtml 的 script），以游標與按下時的底色提示可點 */
+.addon-row {
+  cursor: pointer;
+  user-select: none;
+}
+
+.addon-row:active:not(.addon-row-selected) {
+  background: rgba(0, 0, 0, .05);
+}
+
 .addon-row .stretched-label {
+  cursor: pointer;
+}
+
+/* 放大 checkbox（Bootstrap 預設約 16px）方便 iPad 點選；改用 flex 對齊，取代 form-check 的負邊距定位 */
+.addon-row .form-check {
+  display: flex;
+  align-items: center;
+  gap: .6rem;
+  padding-left: 0;
+}
+
+.addon-row .form-check-input {
+  width: 1.5rem;
+  height: 1.5rem;
+  margin: 0;
+  float: none;
+  flex-shrink: 0;
   cursor: pointer;
 }
 
