@@ -83,6 +83,7 @@
 - [.github/BRIEFING.md](./BRIEFING.md) — 專案定位、技術棧、開發階段
 - [.github/MEMORY.md](./MEMORY.md) — 過去決策與變更紀錄
 - [docs/prd/mvp.md](../docs/prd/mvp.md) — 產品需求文件（PRD），定義各模組範圍與驗收標準
+- [docs/operations.md](../docs/operations.md) — 正式環境維運手冊（每週／每月檢查、更新程式、還原備份）；部署或維運方式變更時須同步更新
 
 > `CONTRIBUTING.md`、`docs/architecture.md`、`docs/api-spec.md`、`docs/adr/` 待對應階段有實際內容後才會建立，建立後請將其加回本清單。
 
