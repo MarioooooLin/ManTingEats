@@ -86,6 +86,26 @@
 
 ---
 
+### [2026-10-08] 加料列整列可點選、放大 checkbox
+
+**變更內容**
+
+- `Views/Order/Details.cshtml`：客製化面板的加料列（`.addon-row`）加上點擊事件，點列上任何位置都會切換勾選並觸發 `change`（沿用既有的顯示數量、更新小計邏輯）；點到 checkbox、文字 label、數量 +/−／輸入框時略過。
+- `wwwroot/css/site.css`：加料列 `cursor: pointer`、`user-select: none`、按下時淡灰底色；checkbox 由約 16px 放大為 1.5rem（24px），`.form-check` 改用 flex 對齊。
+
+**決策原因**
+
+- 使用者反映 iPad 上一定要點到 checkbox 才能勾選：原本只有 checkbox 與文字可點，列的內距與右側空白點了沒反應。
+- 用 JavaScript 判斷點擊位置，而非把整列包成 `<label>`：列內含數量輸入框與按鈕，放進 label 是不合法的 HTML，且可能在調數量時誤觸勾選。
+- 略過 checkbox／label：瀏覽器本身就會切換，若再由列的事件切換一次會變回原狀。
+
+**驗證結果**
+
+- 以 puppeteer-core 驅動 Chrome：點列右側空白、列上緣內距、文字、checkbox 皆正確切換一次；點數量 + 與輸入框時勾選不變；小計隨之正確更新；checkbox 實際尺寸 24x24。
+- 僅畫面與前端腳本變更，未改後端，未重跑 `dotnet test`。尚待使用者以 iPad 實測。
+
+---
+
 ### [2026-10-08] 客製化品項可點多份（v10）
 
 **變更內容**
