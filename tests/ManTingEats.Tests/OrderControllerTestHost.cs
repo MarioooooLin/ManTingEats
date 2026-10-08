@@ -82,7 +82,7 @@ public sealed class OrderControllerTestHost : IDisposable
         {
             order.Items.Add(item);
         }
-        order.TotalAmount = items.Sum(i => i.UnitPrice * i.Quantity + i.AddOns.Sum(a => a.UnitPrice * a.Quantity));
+        order.TotalAmount = items.Sum(i => i.Subtotal);
         db.Orders.Add(order);
         db.SaveChanges();
         return order.Id;

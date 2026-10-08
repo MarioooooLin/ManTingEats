@@ -78,7 +78,8 @@
                         }
                         @if (item.AddOns.Count > 0)
                         {
-                            <div class="text-muted small">加料：@string.Join("、", item.AddOns.Select(a => $"{a.AddOnName} x{a.Quantity}"))</div>
+                            @* 加料數量為每份的量（v10），多份時標示「每份」避免誤會成整行合計 *@
+                            <div class="text-muted small">@(item.Quantity > 1 ? "加料（每份）" : "加料")：@string.Join("、", item.AddOns.Select(a => $"{a.AddOnName} x{a.Quantity}"))</div>
                         }
                         @if (!string.IsNullOrWhiteSpace(item.Note))
                         {
@@ -87,7 +88,7 @@
                     </td>
                     <td class="text-end">$@item.UnitPrice.ToString("F2")</td>
                     <td class="text-end">@item.Quantity</td>
-                    <td class="text-end">$@((item.UnitPrice * item.Quantity + item.AddOns.Sum(a => a.UnitPrice * a.Quantity)).ToString("F2"))</td>
+                    <td class="text-end">$@item.Subtotal.ToString("F2")</td>
                     <td>
                         @if (item.IsPrinted)
                         {
@@ -204,9 +205,19 @@
                         <form asp-action="AddItem" method="post" id="customizeForm" class="d-flex flex-column flex-grow-1">
                             <input type="hidden" name="orderId" value="@order.Id" />
                             <input type="hidden" name="MenuItemId" id="customizeMenuItemId" />
-                            <input type="hidden" name="Quantity" value="1" />
 
                             <div class="flex-grow-1" style="overflow-y: auto;">
+                                @* 客製化品項可點多份（v10），辣度、加料、備註套用到每一份；設定不同請分開加點 *@
+                                <div class="mb-3">
+                                    <label class="form-label">份數</label>
+                                    <div class="qty-stepper">
+                                        <button type="button" class="btn btn-outline-secondary qty-btn" data-step="-1">−</button>
+                                        <input type="number" name="Quantity" id="customizeQuantity" value="1" min="1" max="@ManTingEats.Models.Commands.OrderLimits.MaxQuantity" step="1" required class="form-control" />
+                                        <button type="button" class="btn btn-outline-secondary qty-btn" data-step="1">+</button>
+                                    </div>
+                                    <div class="form-text">以下辣度、加料、備註會套用到每一份；加料數量為每份的量。</div>
+                                </div>
+
                                 <div class="mb-3" id="spiceSection">
                                     <label class="form-label">辣度</label>
                                     <div class="btn-group w-100 spice-btn-group" role="group">
@@ -633,6 +644,7 @@
                     });
                     var firstSpice = form.querySelector('input[name="SpiceLevel"][value="@ManTingEats.Models.Commands.OrderLimits.DefaultSpiceLevel"]');
                     if (firstSpice) { firstSpice.checked = true; }
+                    document.getElementById('customizeQuantity').value = 1;
 
                     updateCustomizeSubtotal(parseFloat(this.dataset.price));
                     new bootstrap.Offcanvas(document.getElementById('customizeItemPanel')).show();
@@ -650,7 +662,7 @@
                 var input = this.parentElement.querySelector('input[type="number"]');
                 var next = parseInt(input.value || '1', 10) + parseInt(this.dataset.step, 10);
                 input.value = Math.min(parseInt(input.max, 10) || 99, Math.max(1, next));
-                if (input.classList.contains('addon-qty-input')) {
+                if (input.classList.contains('addon-qty-input') || input.id === 'customizeQuantity') {
                     updateCustomizeSubtotalFromForm();
                 }
             });
@@ -667,6 +679,8 @@
         document.querySelectorAll('.addon-qty-input').forEach(function (input) {
             input.addEventListener('input', updateCustomizeSubtotalFromForm);
         });
+        var customizeQuantityInput = document.getElementById('customizeQuantity');
+        if (customizeQuantityInput) customizeQuantityInput.addEventListener('input', updateCustomizeSubtotalFromForm);
 
         function updateCustomizeSubtotalFromForm() {
             var priceText = document.getElementById('customizeItemName').textContent;
@@ -675,15 +689,17 @@
             updateCustomizeSubtotal(basePrice);
         }
 
+        // 與後端 OrderItem.Subtotal 相同：（品項單價 + 每份加料金額）x 份數
         function updateCustomizeSubtotal(basePrice) {
-            var total = basePrice || 0;
+            var perServing = basePrice || 0;
             document.querySelectorAll('.addon-checkbox:checked').forEach(function (cb) {
                 var price = parseFloat(cb.dataset.addonPrice) || 0;
                 var qtyInput = cb.closest('.addon-row').querySelector('.addon-qty-input');
                 var qty = parseInt(qtyInput.value || '1', 10);
-                total += price * qty;
+                perServing += price * qty;
             });
-            document.getElementById('customizeSubtotal').textContent = total.toFixed(0);
+            var servings = parseInt(document.getElementById('customizeQuantity').value || '1', 10) || 1;
+            document.getElementById('customizeSubtotal').textContent = (perServing * servings).toFixed(0);
         }
 
         // 客製化表單僅在訂單未結帳且有上架品項時才會輸出，需先判斷避免 null 錯誤中斷後續腳本

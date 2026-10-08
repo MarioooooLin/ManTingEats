@@ -76,12 +76,11 @@ public sealed class OrderControllerTests : IDisposable
     }
 
     [Fact]
-    public async Task AddItem_CustomItem_QuantityLockedToOneAndAddOnsPriced()
+    public async Task AddItem_CustomItem_SingleServingAddOnsPriced()
     {
         var orderId = _host.SeedOrder();
 
-        // 前端送數量 5 也會被後端強制改為 1，避免多份是否都套用同一客製化的計價歧義
-        await _host.CreateController().AddItem(orderId, AddCommand(CustomItemId, quantity: 5, spice: 3, (EggAddOnId, 2)));
+        await _host.CreateController().AddItem(orderId, AddCommand(CustomItemId, quantity: 1, spice: 3, (EggAddOnId, 2)));
 
         var order = _host.LoadOrder(orderId);
         var item = Assert.Single(order.Items);
@@ -91,6 +90,37 @@ public sealed class OrderControllerTests : IDisposable
         Assert.Equal("加蛋", addOn.AddOnName);
         Assert.Equal(10m, addOn.UnitPrice);
         Assert.Equal(140m, order.TotalAmount);  // 120 + 10 x 2
+    }
+
+    [Fact]
+    public async Task AddItem_CustomItemMultipleServings_AddOnsAppliedToEachServing()
+    {
+        var orderId = _host.SeedOrder();
+
+        // v10：客製化品項可點多份，加料數量為每份的量，存成同一行
+        await _host.CreateController().AddItem(orderId, AddCommand(CustomItemId, quantity: 3, spice: 2, (EggAddOnId, 2)));
+
+        var order = _host.LoadOrder(orderId);
+        var item = Assert.Single(order.Items);
+        Assert.Equal(3, item.Quantity);
+        Assert.Equal(2, item.SpiceLevel);
+        Assert.Equal(2, Assert.Single(item.AddOns).Quantity);   // 存每份的量，不預先乘份數
+        Assert.Equal(60m, item.AddOnsTotal);                    // 10 x 2 顆 x 3 份
+        Assert.Equal(420m, order.TotalAmount);                  // (120 + 10 x 2) x 3
+    }
+
+    [Fact]
+    public async Task RemoveItem_CustomItemMultipleServings_RecalculatesTotalWithAddOns()
+    {
+        var orderId = _host.SeedOrder();
+        await _host.CreateController().AddItem(orderId, AddCommand(CustomItemId, quantity: 2, spice: 1, (EggAddOnId, 1)));
+        await _host.CreateController().AddItem(orderId, AddCommand(SimpleItemId, quantity: 1));
+        Assert.Equal(360m, _host.LoadOrder(orderId).TotalAmount);  // (120 + 10) x 2 + 100
+
+        var simpleId = _host.LoadOrder(orderId).Items.Single(i => i.MenuItemId == SimpleItemId).Id;
+        await _host.CreateController().RemoveItem(orderId, simpleId);
+
+        Assert.Equal(260m, _host.LoadOrder(orderId).TotalAmount);
     }
 
     [Fact]

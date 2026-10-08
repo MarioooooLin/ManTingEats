@@ -15,11 +15,11 @@ public sealed class ReportControllerTests : IDisposable
 
     public void Dispose() => _host.Dispose();
 
-    private static OrderItem WithEggs(int eggs) => new()
+    private static OrderItem WithEggs(int eggs, int servings = 1) => new()
     {
         MenuItemId = CustomItemId,
         UnitPrice = 120m,
-        Quantity = 1,
+        Quantity = servings,
         AddOns = { new OrderItemAddOn { AddOnId = EggAddOnId, AddOnName = "加蛋", UnitPrice = 10m, Quantity = eggs } }
     };
 
@@ -59,6 +59,27 @@ public sealed class ReportControllerTests : IDisposable
         Assert.Equal(3, egg.Quantity);
         Assert.Equal(30m, egg.Amount);
 
+        Assert.Equal(report.TotalRevenue, report.ItemRanking.Sum(i => i.Amount) + report.AddOnRanking.Sum(a => a.Amount));
+    }
+
+    [Fact]
+    public async Task Index_MultipleServings_AddOnQuantityTimesServings()
+    {
+        // v10：冷麵 3 份、每份加蛋 2 顆 → 加蛋共 6 顆
+        _host.SeedOrder(OrderStatus.Open, WithEggs(2, servings: 3));
+        CompleteAll();
+
+        var report = await LoadReport();
+
+        var noodle = Assert.Single(report.ItemRanking);
+        Assert.Equal(3, noodle.Quantity);
+        Assert.Equal(360m, noodle.Amount);
+
+        var egg = Assert.Single(report.AddOnRanking);
+        Assert.Equal(6, egg.Quantity);
+        Assert.Equal(60m, egg.Amount);
+
+        Assert.Equal(420m, report.TotalRevenue);
         Assert.Equal(report.TotalRevenue, report.ItemRanking.Sum(i => i.Amount) + report.AddOnRanking.Sum(a => a.Amount));
     }
 

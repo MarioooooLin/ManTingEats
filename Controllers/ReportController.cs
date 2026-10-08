@@ -65,10 +65,11 @@ public sealed class ReportController : Controller
             .ToList();
 
         // 加料以下單當下的名稱快照分組，加料日後改名或停用仍對得上歷史金額；
-        // 金額算法與 OrderController.ComputeTotal 一致，品項與加料兩張排行相加、再減去折扣總額，才會等於總營收
+        // 加料數量為每份的量（v10），需乘以品項份數；金額算法與 OrderItem.AddOnsTotal 一致，
+        // 品項與加料兩張排行相加、再減去折扣總額，才會等於總營收
         var addOnRanking = completedOrders
             .SelectMany(o => o.Items)
-            .SelectMany(i => i.AddOns)
+            .SelectMany(i => i.AddOns.Select(a => (a.AddOnName, Quantity: a.Quantity * i.Quantity, a.UnitPrice)))
             .GroupBy(a => a.AddOnName)
             .Select(g => new AddOnSales(g.Key, g.Sum(a => a.Quantity), g.Sum(a => a.UnitPrice * a.Quantity)))
             .OrderByDescending(a => a.Amount)

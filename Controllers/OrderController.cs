@@ -130,7 +130,7 @@ public sealed class OrderController : Controller
 
     /// <summary>包含加料金額的訂單總額重算，項目集合需已 Include AddOns。</summary>
     private static decimal ComputeTotal(Order order) =>
-        order.Items.Sum(i => i.UnitPrice * i.Quantity + i.AddOns.Sum(a => a.UnitPrice * a.Quantity));
+        order.Items.Sum(i => i.Subtotal);
 
     [HttpPost]
     [ValidateAntiForgeryToken]
@@ -164,13 +164,12 @@ public sealed class OrderController : Controller
             return RedirectToAction(nameof(Details), new { id = orderId });
         }
 
-        var isCustomized = menuItem.SupportsAddOns || menuItem.SupportsSpiceLevel;
-        // 客製化品項恆為 1（後端強制，不信任前端），避免多份是否都套用同一客製化的計價歧義
+        // 客製化品項也可點多份（v10）：辣度、加料、備註套用到每一份，加料數量為每份的量
         var newItem = new OrderItem
         {
             MenuItemId = menuItem.Id,
             UnitPrice = menuItem.Price,
-            Quantity = isCustomized ? 1 : command.Quantity,
+            Quantity = command.Quantity,
             Note = command.Note,
             SpiceLevel = menuItem.SupportsSpiceLevel ? (command.SpiceLevel ?? OrderLimits.DefaultSpiceLevel) : null
         };
