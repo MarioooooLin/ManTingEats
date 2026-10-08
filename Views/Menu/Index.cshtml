@@ -46,7 +46,7 @@
                             <tr>
                                 <td>@item.Category.ToDisplayText()</td>
                                 <td>@item.Name</td>
-                                <td class="text-end">$@item.Price.ToString("F2")</td>
+                                <td class="text-end">$@item.Price.ToString("F0")</td>
                                 <td>
                                     @if (item.SupportsAddOns)
                                     {
@@ -97,7 +97,7 @@
                                     @(addOn.IsActive ? "上架中" : "已下架")
                                 </span>
                             </div>
-                            <div class="text-brand fw-bold mb-3">+$@addOn.Price.ToString("F2")</div>
+                            <div class="text-brand fw-bold mb-3">+$@addOn.Price.ToString("F0")</div>
                             <div class="d-flex gap-2">
                                 <a asp-action="EditAddOn" asp-route-id="@addOn.Id" class="btn btn-sm btn-outline-secondary flex-grow-1">編輯</a>
                                 <form asp-action="ToggleAddOnActive" asp-route-id="@addOn.Id" method="post" class="flex-grow-1">

@@ -25,19 +25,19 @@
             <dt class="col-sm-2">桌號</dt>
             <dd class="col-sm-4">@(order.TableNumber ?? "-")</dd>
             <dt class="col-sm-2">總金額</dt>
-            <dd class="col-sm-4 fs-5 fw-bold">$@order.TotalAmount.ToString("F2")</dd>
+            <dd class="col-sm-4 fs-5 fw-bold">$@order.TotalAmount.ToString("F0")</dd>
             @if (order.DiscountAmount > 0)
             {
                 @* 折扣（v8）：總金額維持原價，另列折扣與實收 *@
                 <dt class="col-sm-2">折扣</dt>
                 <dd class="col-sm-4 text-danger">
-                    −$@order.DiscountAmount.ToString("F2")
+                    −$@order.DiscountAmount.ToString("F0")
                     <div class="small text-muted">
                         @order.DiscountReason?.ToDisplayText()@(string.IsNullOrEmpty(order.DiscountNote) ? "" : "：" + order.DiscountNote)（操作者：@order.DiscountedByEmployee?.Username）
                     </div>
                 </dd>
                 <dt class="col-sm-2">實收</dt>
-                <dd class="col-sm-4 fs-5 fw-bold">$@order.AmountDue.ToString("F2")</dd>
+                <dd class="col-sm-4 fs-5 fw-bold">$@order.AmountDue.ToString("F0")</dd>
             }
             @if (order.Status == OrderStatus.Voided)
             {
@@ -86,9 +86,9 @@
                             <div class="text-muted small">備註：@item.Note</div>
                         }
                     </td>
-                    <td class="text-end">$@item.UnitPrice.ToString("F2")</td>
+                    <td class="text-end">$@item.UnitPrice.ToString("F0")</td>
                     <td class="text-end">@item.Quantity</td>
-                    <td class="text-end">$@item.Subtotal.ToString("F2")</td>
+                    <td class="text-end">$@item.Subtotal.ToString("F0")</td>
                     <td>
                         @if (item.IsPrinted)
                         {
@@ -152,11 +152,11 @@
                                 {
                                     <div class="col">
                                         <button type="button" class="btn btn-outline-primary w-100 h-100 py-3 menu-item-card"
-                                                data-id="@menuItem.Id" data-name="@menuItem.Name" data-price="@menuItem.Price.ToString("F2")"
+                                                data-id="@menuItem.Id" data-name="@menuItem.Name" data-price="@menuItem.Price.ToString("F0")"
                                                 data-supports-addons="@menuItem.SupportsAddOns.ToString().ToLowerInvariant()"
                                                 data-supports-spice="@menuItem.SupportsSpiceLevel.ToString().ToLowerInvariant()">
                                             <div class="fw-bold">@menuItem.Name</div>
-                                            <div class="small text-muted">$@menuItem.Price.ToString("F2")</div>
+                                            <div class="small text-muted">$@menuItem.Price.ToString("F0")</div>
                                             @if (menuItem.SupportsAddOns || menuItem.SupportsSpiceLevel)
                                             {
                                                 <div class="small text-primary">可客製化</div>
@@ -238,8 +238,8 @@
                                             <div class="d-flex align-items-center justify-content-between addon-row">
                                                 <div class="form-check mb-0">
                                                     <input type="checkbox" class="form-check-input addon-checkbox" id="addon-@addOn.Id"
-                                                           data-addon-id="@addOn.Id" data-addon-name="@addOn.Name" data-addon-price="@addOn.Price.ToString("F2")" />
-                                                    <label class="form-check-label stretched-label" for="addon-@addOn.Id">@addOn.Name <span class="text-muted">+$@addOn.Price.ToString("F2")</span></label>
+                                                           data-addon-id="@addOn.Id" data-addon-name="@addOn.Name" data-addon-price="@addOn.Price.ToString("F0")" />
+                                                    <label class="form-check-label stretched-label" for="addon-@addOn.Id">@addOn.Name <span class="text-muted">+$@addOn.Price.ToString("F0")</span></label>
                                                 </div>
                                                 <div class="qty-stepper addon-qty-stepper" style="display: none;">
                                                     <button type="button" class="btn btn-sm btn-outline-secondary qty-btn" data-step="-1">−</button>
@@ -303,7 +303,7 @@
     var totalText = order.TotalAmount.ToString("F0");
     <div class="mb-4">
         @* 結帳視窗本身就是確認步驟，取代原本的 confirm 對話框 *@
-        <button type="button" class="btn btn-success btn-lg" data-bs-toggle="modal" data-bs-target="#checkoutModal" @(order.Items.Count == 0 || unprintedCount > 0 ? "disabled" : "")>結帳（應收 $@order.TotalAmount.ToString("F2")）</button>
+        <button type="button" class="btn btn-success btn-lg" data-bs-toggle="modal" data-bs-target="#checkoutModal" @(order.Items.Count == 0 || unprintedCount > 0 ? "disabled" : "")>結帳（應收 $@order.TotalAmount.ToString("F0")）</button>
         @if (unprintedCount > 0)
         {
             <div class="text-muted small mt-1">尚有 @unprintedCount 項未出單，請先確認訂單或移除這些品項。</div>

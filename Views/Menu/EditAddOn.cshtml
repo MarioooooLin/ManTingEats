@@ -23,7 +23,7 @@
                         <label asp-for="Price" class="form-label">加價</label>
                         <div class="input-group">
                             <span class="input-group-text">$</span>
-                            <input asp-for="Price" class="form-control" type="number" step="1" inputmode="numeric" data-msg-step="金額需為整數" />
+                            <input asp-for="Price" asp-format="{0:F0}" class="form-control" type="number" step="1" inputmode="numeric" data-msg-step="金額需為整數" />
                         </div>
                         <span asp-validation-for="Price" class="text-danger"></span>
                     </div>

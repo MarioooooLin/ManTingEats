@@ -41,10 +41,10 @@
         <div class="card h-100">
             <div class="card-body">
                 <h6 class="text-muted">總營收</h6>
-                <p class="display-6 mb-0">$@Model.TotalRevenue.ToString("F2")</p>
+                <p class="display-6 mb-0">$@Model.TotalRevenue.ToString("F0")</p>
                 @if (Model.TotalDiscount > 0)
                 {
-                    <div class="small text-muted mt-1">已扣除折扣 $@Model.TotalDiscount.ToString("F2")</div>
+                    <div class="small text-muted mt-1">已扣除折扣 $@Model.TotalDiscount.ToString("F0")</div>
                 }
             </div>
         </div>
@@ -53,7 +53,7 @@
         <div class="card h-100">
             <div class="card-body">
                 <h6 class="text-muted">總支出</h6>
-                <p class="display-6 mb-0">$@Model.TotalExpense.ToString("F2")</p>
+                <p class="display-6 mb-0">$@Model.TotalExpense.ToString("F0")</p>
             </div>
         </div>
     </div>
@@ -61,7 +61,7 @@
         <div class="card h-100">
             <div class="card-body">
                 <h6 class="text-muted">淨利</h6>
-                <p class="display-6 mb-0 @(Model.NetProfit < 0 ? "text-danger" : "")">$@Model.NetProfit.ToString("F2")</p>
+                <p class="display-6 mb-0 @(Model.NetProfit < 0 ? "text-danger" : "")">$@Model.NetProfit.ToString("F0")</p>
             </div>
         </div>
     </div>
@@ -91,7 +91,7 @@
                             {
                                 <tr>
                                     <td>@channel.Channel.ToDisplayText()</td>
-                                    <td class="text-end">$@channel.Amount.ToString("F2")</td>
+                                    <td class="text-end">$@channel.Amount.ToString("F0")</td>
                                 </tr>
                             }
                         </tbody>
@@ -124,7 +124,7 @@
                 <tr>
                     <td>@item.MenuItemName</td>
                     <td class="text-end">@item.Quantity</td>
-                    <td class="text-end">$@item.Amount.ToString("F2")</td>
+                    <td class="text-end">$@item.Amount.ToString("F0")</td>
                 </tr>
             }
         </tbody>
@@ -153,7 +153,7 @@
                 <tr>
                     <td>@addOn.AddOnName</td>
                     <td class="text-end">@addOn.Quantity</td>
-                    <td class="text-end">$@addOn.Amount.ToString("F2")</td>
+                    <td class="text-end">$@addOn.Amount.ToString("F0")</td>
                 </tr>
             }
         </tbody>

@@ -39,7 +39,7 @@
     </div>
 </div>
 
-<p class="text-muted">支出總額：<strong>$@Model.TotalAmount.ToString("F2")</strong></p>
+<p class="text-muted">支出總額：<strong>$@Model.TotalAmount.ToString("F0")</strong></p>
 
 @if (Model.Results.TotalCount == 0)
 {
@@ -65,7 +65,7 @@ else
                     <tr>
                         <td>@expense.Date.ToString("yyyy-MM-dd")</td>
                         <td>@expense.Category.ToDisplayText()</td>
-                        <td class="text-end">$@expense.Amount.ToString("F2")</td>
+                        <td class="text-end">$@expense.Amount.ToString("F0")</td>
                         <td>@expense.Note</td>
                         <td class="text-end text-nowrap">
                             <a asp-action="Edit" asp-route-id="@expense.Id" class="btn btn-sm btn-outline-secondary">編輯</a>
