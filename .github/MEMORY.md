@@ -42,6 +42,7 @@
   - 程式位於 `/opt/mantingeats`（`git clone`），`.env` 權限 600；兩組 DB 密碼以 `openssl rand -hex 16` 產生，**第一次啟動後不可再改**（MySQL 只在資料庫初始化時讀取）。網站帳密由使用者自行設定。
   - `docker compose -f docker-compose.prod.yml up -d --build` 後 web／db／caddy 皆 Up，Caddy 已取得 Let's Encrypt 憑證，網站可正常開啟。
   - 更新程式：`cd /opt/mantingeats && git pull && docker compose -f docker-compose.prod.yml up -d --build`（資料存於 Docker volume，Migration 啟動時自動套用）。更新前可先 `sh scripts/backup-db.sh` 手動備份；**挑打烊時段更新**（約中斷 10～60 秒）。
+  - 2026-10-09 00:24（營業中，使用者要求）更新至 `9112149`（全站金額改為整數顯示，僅畫面）：更新前手動備份 `mantingeats_20261009_002433.sql`；web 無錯誤、重啟次數 0，HTTPS 登入頁 200；容器內 dll 含 `{0:F0}` 且已無 `"F2"` 字串，確認新版生效。
   - 2026-10-09 00:13（營業中，使用者要求）更新至 `92b718b`（停用 iPad 點兩下放大，僅 CSS）：更新前手動備份 `mantingeats_20261009_001301.sql`；web 無錯誤、重啟次數 0，HTTPS 登入頁 200，正式網站的 `site.css` 已含 `touch-action: manipulation`。
   - 2026-10-08 23:55（營業中，使用者要求）更新至 `ec3e844`（加料列整列可點選、放大 checkbox，僅畫面）：更新前手動備份 `mantingeats_20261008_235519.sql`；web 無錯誤、重啟次數 0，HTTPS 登入頁 200，正式網站的 `site.css` 已含新樣式。
   - 2026-10-08 23:40（**營業中**，使用者決定不等打烊）更新至 `617a4a9`（客製化品項可點多份 v10，無 Migration）：更新前手動備份 `mantingeats_20261008_234020.sql`；web 無錯誤、重啟次數 0，HTTPS 登入頁 200，未登入進入訂單導向登入；容器內 dll 含新屬性 `AddOnsTotal`，確認新版生效。
