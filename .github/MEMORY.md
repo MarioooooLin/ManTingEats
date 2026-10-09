@@ -40,6 +40,8 @@
 - **接下來的期限與待辦**：
   - **2026-11-06 Vultr 促銷額度到期**，之後由信用卡扣款（主機＋自動備份約 $12／月）。
   - 正式環境還原演練：**2026-10-10 使用者決定取消**，不執行。`docs/operations.md` 仍保留演練章節與待辦勾選項，尚未同步修改。
+  - SSH 已於 2026-10-10 改為只允許金鑰登入＋fail2ban（健檢發現近 7 天約 6 萬次密碼暴力破解）。**另一台電腦需先加入 SSH 公鑰才能連線。**
+  - MySQL 8.0 已結束支援，另排時間升級 8.4 LTS。
   - 其他見下方「Review 待辦」（隱私權政策聯絡資訊、README 整理等）。
 
 ### 正式環境主機與網域（2026-10-06 上線，2026-10-08 正式開幕）
@@ -63,7 +65,7 @@
   - 2026-10-07 02:18（打烊後）更新至 `0b56094`（結帳折扣 v8）：更新前手動備份 `mantingeats_20261007_021803.sql`；Migration `AddOrderDiscount` 套用成功，既有訂單折扣皆為 0；web 無錯誤、重啟次數 0，HTTPS 登入頁 200。
   - 2026-10-07 01:37（打烊後）更新至 `9e8e8f4`（帳號與權限管理 v7）：更新前手動備份 `mantingeats_20261007_013754.sql`；Migration `AddEmployeeActiveAndSecurityStamp` 套用成功，店長帳號為啟用且已補上戳記；web 無錯誤、重啟次數 0，HTTPS 登入頁 200，未登入進入帳號管理會導向登入。**店長已更換初始密碼**（以密碼雜湊與更新前備份比對確認不同；`.env` 中的初始密碼已失效，僅在資料庫無任何帳號時才會用到）。
   - 2026-10-07 01:12（打烊後）更新至 `4f0d91c`（MySQL 健康檢查）：更新前手動備份 `mantingeats_20261007_011226.sql`；db 以新設定重建並 Healthy，web 重建後無錯誤、重啟次數 0，HTTPS 登入頁 200。
-  - SSH：Mac 的公鑰已於 2026-10-07 以 `ssh-copy-id` 加入 VPS 的 `root` 帳號，可用金鑰直接登入（另一台電腦的登入方式未記錄）。VPS 目前仍開放密碼登入。**主機 IP 不寫在公開 repo**（見 Vultr 後台）。
+  - SSH：Mac 的公鑰已於 2026-10-07 以 `ssh-copy-id` 加入 VPS 的 `root` 帳號，可用金鑰直接登入。**2026-10-10 起只允許金鑰登入**（另一台電腦需先加入公鑰）。**主機 IP 不寫在公開 repo**（見 Vultr 後台）。
 - **備份（2026-10-06 設定完成）**：每日 **08:00**（台灣時間；店家營業晚餐與消夜，早上無人使用）由 root crontab 執行 `sh /opt/mantingeats/scripts/backup-db.sh >> /opt/mantingeats/backups/backup.log 2>&1`，保留 7 天。腳本在 repo 中無執行權限，故以 `sh` 呼叫；改時區後需 `systemctl restart cron` 才會依台灣時間排程。另開啟 **Vultr 自動備份**（整台主機快照，建議排在 08:00 之後），作為主機外的一層備份；異地備份（低 7）可延後。
 - **維運手冊**：`docs/operations.md`（每週／每月檢查、更新程式、還原、一次性待辦）。第一次還原演練已於 2026-10-10 由使用者決定取消（指令曾於本機開發環境預演成功）。
 - **上線前準備皆已完成**：登入與 iPad PassPRNT 出單實測、測試資料清除、輸入真實菜單（17 項、加料 6 項）。正式環境**勿執行 `import-menu-seed.sh`**（測試資料）。
@@ -98,6 +100,32 @@
 - 2026-10-07 起 db 有健康檢查、web 會等 db 就緒才啟動，不再需要手動 `docker compose restart web`。
 - 若本機已裝 MySQL 佔用 3306（Mac 那台即是），需先到「系統設定 → MySQL」停用，否則 db 容器無法啟動。
 - GitHub repo 為**公開**，不得 commit 真實資料或機密。
+
+---
+
+### [2026-10-10] VPS 與 Docker 健檢、SSH 加固、容器日誌上限
+
+**變更內容**（皆在正式主機上，repo 只更新 `docs/operations.md`）
+
+- 新增 `/etc/docker/daemon.json`：json-file 日誌每檔 10MB、最多 3 檔；重啟 Docker 並 `up -d --force-recreate` 讓三個容器套用。之前沒有此檔，還原＝刪除後 `systemctl restart docker`。
+- `docker builder prune -f --filter until=72h` 清除 243MB 建置快取（其餘約 2GB 為 3 天內的快取，保留）。
+- **SSH 加固**：備份 `/etc/ssh` 至 `/etc/ssh.bak-20261010`；新增 `/etc/ssh/sshd_config.d/00-hardening.conf`（`PasswordAuthentication no`、`KbdInteractiveAuthentication no`、`PermitRootLogin prohibit-password`、`X11Forwarding no`、`MaxAuthTries 3`；檔名 00- 比 `50-cloud-init.conf` 先讀取而生效）；安裝 fail2ban，`/etc/fail2ban/jail.local` 設 sshd（systemd backend、10 分鐘內失敗 5 次封鎖 1 小時）。
+- `docs/operations.md`：「自動運作中的項目」加上 SSH 防護與容器日誌上限；每月維護加上清除建置快取；一次性待辦勾選 SSH 金鑰登入。
+
+**決策原因**
+
+- 健檢（唯讀）發現：
+  - **SSH 近 7 天約 59,402 次登入失敗**，且 `PermitRootLogin yes`＋`PasswordAuthentication yes`（來自 `50-cloud-init.conf`）、未裝 fail2ban。成功登入僅 Mac 金鑰與 3 次密碼登入（10/07 01:11 為 Mac；10/06、10/08 各一次來自台北的固網 IP，推測為使用者另一台電腦）；無可疑帳號、排程或程序。`linuxuser`（Vultr 預設）密碼已鎖、無金鑰。
+  - Docker 沒有 `daemon.json`，日誌無上限；建置快取 2.6GB 隨部署累積。
+  - MySQL 8.0 已於 2026-04 結束支援（資料庫未對外開放，風險較低），升級 8.4 LTS 另排時間。
+  - 正常：UFW 只開 22/80/443、DB 與 Caddy 管理埠未對外；自動安全更新開啟、無待裝安全更新；硬碟 29%；`.env` 600；時區與時間同步正常；正式機程式與 GitHub 一致。
+- 使用者要求直接執行 SSH 加固與 Docker 日誌上限。SSH 加固第一次被 Claude Code 權限機制擋下，使用者明確授權後執行。**另一台電腦之後不能再用密碼登入**，需先加入 SSH 公鑰；被鎖在外面時可用 Vultr 網頁主控台（不經 SSH）。
+
+**驗證結果**
+
+- 03:20 先手動備份 `mantingeats_20261010_032056.sql`；三個容器 `LogConfig` 皆為 `max-file:3 max-size:10m`，重啟次數 0，HTTPS 登入頁 200。
+- SSH：新連線以金鑰登入成功；強制密碼登入回 `Permission denied (publickey)`；`sshd -T` 為 `passwordauthentication no`、`permitrootlogin prohibit-password`；fail2ban active，啟用後立即封鎖 3 個 IP。網站三個容器正常。
+- 重啟 Docker 時提示 `docker.service` 單元檔已變更（推測自動更新升級了 Docker），可於下次維護執行 `systemctl daemon-reload`。
 
 ---
 
