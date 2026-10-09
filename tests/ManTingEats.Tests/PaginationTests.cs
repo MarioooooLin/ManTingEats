@@ -20,10 +20,10 @@ public sealed class PaginationTests : IDisposable
     }
 
     [Theory]
-    [InlineData(1, 1, 20)]
-    [InlineData(2, 2, 5)]
-    [InlineData(0, 1, 20)]     // 頁碼過小夾回第一頁
-    [InlineData(99, 2, 5)]     // 頁碼超過總頁數夾回最後一頁
+    [InlineData(1, 1, 10)]
+    [InlineData(3, 3, 5)]
+    [InlineData(0, 1, 10)]     // 頁碼過小夾回第一頁
+    [InlineData(99, 3, 5)]     // 頁碼超過總頁數夾回最後一頁
     public async Task CreateAsync_SplitsIntoPages(int requestedPage, int expectedPage, int expectedCount)
     {
         SeedOrders(25, OrderStatus.Completed);
@@ -34,7 +34,7 @@ public sealed class PaginationTests : IDisposable
         Assert.Equal(expectedPage, result.Page);
         Assert.Equal(expectedCount, result.Items.Count);
         Assert.Equal(25, result.TotalCount);
-        Assert.Equal(2, result.TotalPages);
+        Assert.Equal(3, result.TotalPages);
     }
 
     [Fact]

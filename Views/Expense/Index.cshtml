@@ -14,11 +14,11 @@
     <div class="card-body">
         <form asp-action="Index" method="get" class="row g-2 align-items-end">
             <div class="col-auto">
-                <label class="form-label">開始日期</label>
+                <label class="form-label">開始營業日</label>
                 <input type="date" name="start" value="@Model.Start?.ToString("yyyy-MM-dd")" class="form-control" />
             </div>
             <div class="col-auto">
-                <label class="form-label">結束日期</label>
+                <label class="form-label">結束營業日</label>
                 <input type="date" name="end" value="@Model.End?.ToString("yyyy-MM-dd")" class="form-control" />
             </div>
             <div class="col-auto">
@@ -52,7 +52,7 @@ else
         <table class="table table-hover mb-0">
             <thead>
                 <tr>
-                    <th>日期</th>
+                    <th>營業日</th>
                     <th>分類</th>
                     <th class="text-end">金額</th>
                     <th>備註</th>

@@ -18,7 +18,8 @@
                     <div asp-validation-summary="ModelOnly" class="text-danger"></div>
                     <div class="mb-3">
                         <label asp-for="Date" class="form-label"></label>
-                        <input asp-for="Date" class="form-control" type="date" autofocus />
+                        <input asp-for="Date" class="form-control" type="date" />
+                        <div class="form-text">營業時間跨夜，06:00 前記帳算前一天</div>
                         <span asp-validation-for="Date" class="text-danger"></span>
                     </div>
                     <div class="mb-3">
@@ -35,7 +36,7 @@
                         <label asp-for="Amount" class="form-label"></label>
                         <div class="input-group">
                             <span class="input-group-text">$</span>
-                            <input asp-for="Amount" asp-format="{0:F0}" class="form-control" type="number" step="1" inputmode="numeric" data-msg-step="金額需為整數" />
+                            <input asp-for="Amount" asp-format="{0:F0}" class="form-control" type="number" step="1" inputmode="numeric" data-msg-step="金額需為整數" autofocus />
                         </div>
                         <span asp-validation-for="Amount" class="text-danger"></span>
                     </div>

@@ -12,7 +12,8 @@ public interface IPagination
 
 public sealed class PagedList<T> : IPagination
 {
-    public const int DefaultPageSize = 20;
+    /// <summary>全站列表每頁筆數（v12 由 20 改為 10，使用者要求訂單、支出、訂位列表一致）。</summary>
+    public const int DefaultPageSize = 10;
 
     public required List<T> Items { get; init; }
     public required int Page { get; init; }

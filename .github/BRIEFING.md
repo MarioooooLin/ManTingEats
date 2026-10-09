@@ -20,6 +20,7 @@
 | 資料庫   | MySQL 8.0（Docker Compose 提供）                                                                                                           |
 | ORM      | **EF Core**（Pomelo.EntityFrameworkCore.MySql provider），詳見 [docs/adr/20260916-orm-selection.md](../docs/adr/20260916-orm-selection.md) |
 | 容器化   | Docker / Docker Compose                                                                                                                    |
+| 前端套件 | Bootstrap 5、jQuery（含 Validation）、flatpickr 4.6.13（日期選擇器，v12）；皆放在 `wwwroot/lib/`，不使用 CDN                                   |
 | 站台數量 | 單一 Web 站台，非多站台架構                                                                                                                |
 | 多語系   | 目前僅繁體中文（zh-TW），未規劃多語系機制                                                                                                  |
 

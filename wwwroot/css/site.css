@@ -332,3 +332,68 @@ body {
   background-color: var(--brand-primary);
   border-color: var(--brand-primary);
 }
+
+/* 日期選擇器（v12）：flatpickr 預設每格約 39px，在 iPad 上不好點，放大到 60px；
+   手機寬度放不下放大版，維持預設大小 */
+@media (min-width: 576px) {
+  .flatpickr-calendar,
+  .flatpickr-calendar .flatpickr-days,
+  .flatpickr-calendar .dayContainer {
+    width: 420px;
+    min-width: 420px;
+    max-width: 420px;
+  }
+
+  .flatpickr-calendar .flatpickr-day {
+    max-width: 60px;
+    height: 60px;
+    line-height: 58px;
+    font-size: 1.15rem;
+  }
+
+  .flatpickr-calendar span.flatpickr-weekday {
+    font-size: 1rem;
+  }
+
+  .flatpickr-calendar .flatpickr-months .flatpickr-month,
+  .flatpickr-calendar .flatpickr-months .flatpickr-prev-month,
+  .flatpickr-calendar .flatpickr-months .flatpickr-next-month {
+    height: 56px;
+  }
+
+  .flatpickr-calendar .flatpickr-months .flatpickr-prev-month,
+  .flatpickr-calendar .flatpickr-months .flatpickr-next-month {
+    padding: 18px;
+  }
+
+  .flatpickr-calendar .flatpickr-current-month {
+    font-size: 1.35rem;
+    padding-top: 12px;
+  }
+
+  .flatpickr-calendar .flatpickr-time {
+    height: 56px;
+    max-height: 56px;
+    line-height: 56px;
+  }
+
+  .flatpickr-calendar .flatpickr-time input,
+  .flatpickr-calendar .flatpickr-time .flatpickr-time-separator {
+    font-size: 1.3rem;
+  }
+}
+
+/* 選取的日期改用品牌色，與按鈕一致 */
+.flatpickr-day.selected,
+.flatpickr-day.selected:hover,
+.flatpickr-day.selected:focus {
+  background: var(--brand-primary);
+  border-color: var(--brand-primary);
+}
+
+.flatpickr-footer {
+  padding: 0.5rem;
+  text-align: right;
+  border-top: 1px solid var(--bs-border-color);
+}
+

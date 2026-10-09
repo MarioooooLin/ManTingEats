@@ -58,7 +58,8 @@ public sealed class ExpenseController : Controller
     [HttpGet]
     public IActionResult Create()
     {
-        return View(new CreateExpenseCommand(DateTime.Today, ExpenseCategory.Ingredients, 0, null));
+        // 支出以營業日記帳（v12）：打烊後凌晨記帳仍帶入當晚的營業日，報表才能與同晚的營收對上
+        return View(new CreateExpenseCommand(TaipeiTime.BusinessToday, ExpenseCategory.Ingredients, 0, null));
     }
 
     [HttpPost]
@@ -120,12 +121,12 @@ public sealed class ExpenseController : Controller
         return RedirectToAction(nameof(Index));
     }
 
-    /// <summary>支出僅登記已發生的費用，日期不可晚於今天（台灣時區）；補登過去日期不受限。</summary>
+    /// <summary>支出僅登記已發生的費用，營業日不可晚於目前營業日（v12，06:00 切換）；補登過去日期不受限。</summary>
     private void ValidateExpenseDate(DateTime date, string fieldName)
     {
-        if (date.Date > TaipeiTime.Today)
+        if (date.Date > TaipeiTime.BusinessToday)
         {
-            ModelState.AddModelError(fieldName, "支出日期不可晚於今天");
+            ModelState.AddModelError(fieldName, "營業日不可晚於目前營業日");
         }
     }
 
