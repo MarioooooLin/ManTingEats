@@ -22,6 +22,8 @@ ssh root@主機IP
 | 整台主機備份 | Vultr 自動備份（Auto Backups） |
 | HTTPS 憑證 | Caddy 於到期前自動續約 |
 | 服務自動重啟 | 三個服務皆為 `restart: unless-stopped`，程式當掉或主機重開機後自動恢復；web 會等 db 健康檢查通過才啟動 |
+| SSH 防護 | 只允許金鑰登入；fail2ban 於 10 分鐘內失敗 5 次即封鎖該 IP 1 小時（`fail2ban-client status sshd` 查看） |
+| 容器日誌上限 | `/etc/docker/daemon.json` 設定每個容器日誌最多 3 個檔、每檔 10MB，自動輪替，不會塞滿硬碟（2026-10-10 設定；只對設定後建立的容器生效，還原＝刪除該檔後 `systemctl restart docker`） |
 
 ---
 
@@ -50,10 +52,10 @@ cd /opt/mantingeats && docker compose -f docker-compose.prod.yml ps && ls -lht b
 
    顯示「需要重開機」時執行 `reboot`，約 1 分鐘後網站自動恢復，再做一次「二、每週檢查」確認。
 
-2. **清除舊 Docker 映像檔**（每次更新程式都會留下舊版）
+2. **清除舊 Docker 映像檔與建置快取**（每次更新程式都會留下舊版與建置快取，建置快取約每次部署增加數百 MB）
 
    ```sh
-   docker image prune -f
+   docker image prune -f && docker builder prune -f --filter until=72h && docker system df
    ```
 
 3. **查看 Vultr 帳單**：確認信用卡扣款正常（促銷額度 2026-11-06 到期後開始實際扣款，約 $12／月）。
@@ -146,7 +148,7 @@ docker rm -fv restore-test && rm -f /tmp/a.txt /tmp/b.txt && unset DB_ROOT_PASSW
 
 - [ ] 第一次還原演練（見「六」）
 - [ ] 網站斷線通知：設定免費監測服務（例如 UptimeRobot），每 5 分鐘檢查網站，連不上時寄信通知
-- [ ] SSH 改為只允許金鑰登入：兩台電腦都設好金鑰後，關閉密碼登入
+- [x] SSH 改為只允許金鑰登入＋fail2ban（2026-10-10）：設定在 `/etc/ssh/sshd_config.d/00-hardening.conf`，原設定備份於 `/etc/ssh.bak-20261010`；還原＝刪除該檔後 `systemctl reload ssh`。新電腦要連線需先把公鑰加入 `/root/.ssh/authorized_keys`（可從 Vultr 網頁主控台操作）
 - [ ] Vultr 帳號開啟雙因素認證（Cloudflare 帳號同樣要開）
 - [ ] 異地備份：每日備份檔另存一份到 Vultr 以外的地方
 - [ ] 隱私權政策聯絡電話、信箱（`Views/Home/Privacy.cshtml` 頂端常數）
