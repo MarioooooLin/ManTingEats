@@ -25,14 +25,68 @@ public sealed class OrderController : Controller
 
     private int CurrentEmployeeId => int.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier)!);
 
-    public async Task<IActionResult> Index(int page = 1)
+    /// <summary>訂單列表每頁筆數（v11）：預設畫面只看今天最新幾張，查詢結果也以同樣筆數分頁。</summary>
+    public const int OrderListSize = 10;
+
+    /// <summary>
+    /// 未帶任何查詢條件時為預設畫面：今天營業日最新 10 筆，不分結帳狀態、依時間倒序、不分頁（v11）。
+    /// 帶了營業日區間或狀態任一條件即為查詢，結果每頁 10 筆分頁。
+    /// </summary>
+    public async Task<IActionResult> Index(DateTime? start, DateTime? end, OrderStatus? status, int page = 1)
     {
-        // 未結帳訂單一律排最前面：分頁後若只依建立時間排序，忙碌時較早開的未結帳單會被擠到第二頁而漏結帳
-        var query = _db.Orders
-            .OrderBy(o => o.Status == OrderStatus.Open ? 0 : 1)
-            .ThenByDescending(o => o.CreatedAt)
+        var isSearch = start.HasValue || end.HasValue || status.HasValue;
+        var todayStartUtc = TaipeiTime.BusinessDayStartUtc(TaipeiTime.BusinessToday);
+
+        if (!isSearch)
+        {
+            var todayOrders = _db.Orders
+                .Where(o => o.CreatedAt >= todayStartUtc)
+                .OrderByDescending(o => o.CreatedAt)
+                .ThenByDescending(o => o.Id)
+                .Take(OrderListSize);
+
+            // 列表只有今天最新 10 筆，較早或前一營業日的未結帳單可能不在畫面上，提示總張數避免漏結帳；要處理時再用狀態查詢
+            var openCount = await _db.Orders.CountAsync(o => o.Status == OrderStatus.Open);
+
+            return View(new OrderSearchViewModel
+            {
+                Results = await PagedList<Order>.CreateAsync(todayOrders, 1, OrderListSize),
+                OpenCount = openCount
+            });
+        }
+
+        var query = _db.Orders.AsQueryable();
+
+        // 起訖皆為營業日（含當天）：起日 06:00 起，到訖日隔天 06:00 前；留空代表該端不限
+        if (start.HasValue)
+        {
+            var startUtc = TaipeiTime.BusinessDayStartUtc(start.Value.Date);
+            query = query.Where(o => o.CreatedAt >= startUtc);
+        }
+
+        if (end.HasValue)
+        {
+            var endExclusiveUtc = TaipeiTime.BusinessDayStartUtc(end.Value.Date.AddDays(1));
+            query = query.Where(o => o.CreatedAt < endExclusiveUtc);
+        }
+
+        if (status.HasValue)
+        {
+            query = query.Where(o => o.Status == status.Value);
+        }
+
+        var ordered = query
+            .OrderByDescending(o => o.CreatedAt)
             .ThenByDescending(o => o.Id);
-        return View(await PagedList<Order>.CreateAsync(query, page));
+
+        return View(new OrderSearchViewModel
+        {
+            IsSearch = true,
+            Start = start,
+            End = end,
+            Status = status,
+            Results = await PagedList<Order>.CreateAsync(ordered, page, OrderListSize)
+        });
     }
 
     [HttpGet]

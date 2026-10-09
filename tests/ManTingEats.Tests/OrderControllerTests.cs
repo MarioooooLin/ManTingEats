@@ -2,6 +2,7 @@ using ManTingEats.Models;
 using ManTingEats.Models.Commands;
 using ManTingEats.Models.Entities;
 using ManTingEats.Models.Enums;
+using ManTingEats.Services;
 using Microsoft.AspNetCore.Mvc;
 using Xunit;
 using static ManTingEats.Tests.OrderControllerTestHost;
@@ -55,6 +56,103 @@ public sealed class OrderControllerTests : IDisposable
         await _host.CreateController().Create(new CreateOrderCommand(OrderChannel.DineIn, "A1"), confirmDuplicateTable: true);
         using var db = _host.CreateDbContext();
         Assert.Equal(2, db.Orders.Count(o => o.TableNumber == "A1"));
+    }
+
+    // ── 訂單列表與查詢（v11） ──────────────────────────────────
+
+    private static DateTime TodayStartUtc => TaipeiTime.BusinessDayStartUtc(TaipeiTime.BusinessToday);
+
+    /// <summary>建立指定時間與單號的訂單；SeedOrder 一律用現在時間，測試營業日邊界需自行指定。</summary>
+    private int SeedOrderAt(DateTime createdAtUtc, int dailyNumber, OrderStatus status = OrderStatus.Completed)
+    {
+        var id = _host.SeedOrder(status);
+        using var db = _host.CreateDbContext();
+        var order = db.Orders.Single(o => o.Id == id);
+        order.CreatedAt = createdAtUtc;
+        order.DailyNumber = dailyNumber;
+        db.SaveChanges();
+        return id;
+    }
+
+    private async Task<OrderSearchViewModel> IndexAsync(DateTime? start = null, DateTime? end = null, OrderStatus? status = null, int page = 1) =>
+        Assert.IsType<OrderSearchViewModel>(Assert.IsType<ViewResult>(
+            await _host.CreateController().Index(start, end, status, page)).Model);
+
+    [Fact]
+    public async Task Index_Default_ShowsLatestTenOfTodayNewestFirst()
+    {
+        // 今天 12 張（有未結帳也有已完成，不影響排序），前一營業日 3 張已完成
+        for (var n = 1; n <= 12; n++)
+        {
+            SeedOrderAt(TodayStartUtc.AddMinutes(n), n, n % 3 == 0 ? OrderStatus.Open : OrderStatus.Completed);
+        }
+        for (var n = 1; n <= 3; n++)
+        {
+            SeedOrderAt(TodayStartUtc.AddHours(-5).AddMinutes(n), n);
+        }
+
+        var model = await IndexAsync();
+
+        Assert.False(model.IsSearch);
+        Assert.Equal(Enumerable.Range(3, 10).Reverse(), model.Results.Items.Select(o => o.DailyNumber));
+        Assert.Equal(1, model.Results.TotalPages);
+    }
+
+    [Fact]
+    public async Task Index_Default_CountsAllOpenOrders()
+    {
+        SeedOrderAt(TodayStartUtc.AddMinutes(-1), 8, OrderStatus.Open);
+        SeedOrderAt(TodayStartUtc.AddDays(-2), 3, OrderStatus.Open);
+        SeedOrderAt(TodayStartUtc.AddMinutes(-2), 7, OrderStatus.Completed);
+        SeedOrderAt(TodayStartUtc.AddMinutes(1), 1, OrderStatus.Open);
+
+        var model = await IndexAsync();
+
+        Assert.Equal(3, model.OpenCount);   // 今天 1 張＋以前營業日 2 張，已完成的不算
+        Assert.Equal(1, Assert.Single(model.Results.Items).DailyNumber);
+    }
+
+    [Fact]
+    public async Task Index_SearchByBusinessDateRange_IncludesBothEndsUntil0600()
+    {
+        var today = TaipeiTime.BusinessToday;
+        SeedOrderAt(TaipeiTime.BusinessDayStartUtc(today.AddDays(-4)).AddHours(23), 1);   // 區間前一天的深夜：不含
+        SeedOrderAt(TaipeiTime.BusinessDayStartUtc(today.AddDays(-3)), 2);                // 起日 06:00 整：含
+        SeedOrderAt(TaipeiTime.BusinessDayStartUtc(today.AddDays(-2)).AddHours(20), 3);   // 訖日隔天 02:00 仍屬訖日：含
+        SeedOrderAt(TaipeiTime.BusinessDayStartUtc(today.AddDays(-1)), 4);                // 訖日隔天 06:00 整：不含
+
+        var model = await IndexAsync(start: today.AddDays(-3), end: today.AddDays(-2));
+
+        Assert.True(model.IsSearch);
+        Assert.Equal([3, 2], model.Results.Items.Select(o => o.DailyNumber));
+    }
+
+    [Fact]
+    public async Task Index_SearchByStatusWithoutDate_SearchesAllDays()
+    {
+        SeedOrderAt(TodayStartUtc.AddDays(-3), 1, OrderStatus.Voided);
+        SeedOrderAt(TodayStartUtc.AddMinutes(1), 1, OrderStatus.Voided);
+        SeedOrderAt(TodayStartUtc.AddMinutes(2), 2, OrderStatus.Completed);
+
+        var model = await IndexAsync(status: OrderStatus.Voided);
+
+        Assert.Equal(2, model.Results.TotalCount);
+        Assert.All(model.Results.Items, o => Assert.Equal(OrderStatus.Voided, o.Status));
+    }
+
+    [Fact]
+    public async Task Index_SearchResults_PagedByTen()
+    {
+        for (var n = 1; n <= 13; n++)
+        {
+            SeedOrderAt(TodayStartUtc.AddMinutes(n), n);
+        }
+
+        var model = await IndexAsync(start: TaipeiTime.BusinessToday, end: TaipeiTime.BusinessToday, page: 2);
+
+        Assert.Equal(13, model.Results.TotalCount);
+        Assert.Equal(2, model.Results.TotalPages);
+        Assert.Equal([3, 2, 1], model.Results.Items.Select(o => o.DailyNumber));
     }
 
     // ── 加點與金額計算 ──────────────────────────────────────────

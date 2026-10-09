@@ -1,7 +1,6 @@
 using ManTingEats.Models;
 using ManTingEats.Models.Entities;
 using ManTingEats.Models.Enums;
-using Microsoft.AspNetCore.Mvc;
 using Xunit;
 
 namespace ManTingEats.Tests;
@@ -48,19 +47,5 @@ public sealed class PaginationTests : IDisposable
         Assert.Equal(1, result.Page);
         Assert.Equal(1, result.TotalPages);
         Assert.Empty(result.Items);
-    }
-
-    [Fact]
-    public async Task OrderIndex_OpenOrdersStayOnFirstPage()
-    {
-        // 先開的 2 張未結帳單，之後又結帳了 25 張：若只依時間排序，未結帳單會被擠到第二頁
-        SeedOrders(2, OrderStatus.Open);
-        SeedOrders(25, OrderStatus.Completed);
-
-        var result = await _host.CreateController().Index(page: 1);
-
-        var orders = Assert.IsType<PagedList<Order>>(Assert.IsType<ViewResult>(result).Model);
-        Assert.Equal(27, orders.TotalCount);
-        Assert.All(orders.Items.Take(2), o => Assert.Equal(OrderStatus.Open, o.Status));
     }
 }

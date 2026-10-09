@@ -1,6 +1,10 @@
-@model ManTingEats.Models.PagedList<ManTingEats.Models.Entities.Order>
+@model ManTingEats.Models.OrderSearchViewModel
+@using ManTingEats.Services
 @{
     ViewData["Title"] = "訂單";
+    // 預設畫面起訖都帶入今天營業日，只改其中一端即可查區間；查詢時保留使用者的選擇（留空代表該端不限）
+    var startValue = Model.IsSearch ? Model.Start : TaipeiTime.BusinessToday;
+    var endValue = Model.IsSearch ? Model.End : TaipeiTime.BusinessToday;
 }
 
 <div class="page-header d-flex justify-content-between align-items-center">
@@ -8,9 +12,52 @@
     <a asp-action="Create" class="btn btn-primary">+ 新增訂單</a>
 </div>
 
-@if (Model.TotalCount == 0)
+<div class="card mb-4">
+    <div class="card-body">
+        <form asp-action="Index" method="get" class="row g-2 align-items-end">
+            <div class="col-auto">
+                <label class="form-label">開始營業日</label>
+                <input type="date" name="start" value="@startValue?.ToString("yyyy-MM-dd")" class="form-control" />
+            </div>
+            <div class="col-auto">
+                <label class="form-label">結束營業日</label>
+                <input type="date" name="end" value="@endValue?.ToString("yyyy-MM-dd")" class="form-control" />
+            </div>
+            <div class="col-auto">
+                <label class="form-label">狀態</label>
+                <select name="status" class="form-select">
+                    <option value="">全部</option>
+                    @foreach (var value in Enum.GetValues<OrderStatus>())
+                    {
+                        <option value="@value" selected="@(Model.Status == value)">@value.ToDisplayText()</option>
+                    }
+                </select>
+            </div>
+            <div class="col-auto">
+                <button type="submit" class="btn btn-outline-primary">查詢</button>
+                <a asp-action="Index" class="btn btn-outline-secondary">清除</a>
+            </div>
+        </form>
+    </div>
+</div>
+
+@if (Model.OpenCount > 0)
 {
-    <p class="text-muted">尚無訂單。</p>
+    @* 可關閉但不記住：重新整理或回到訂單頁會再出現，避免忘記還有單沒結帳 *@
+    <div class="alert alert-warning alert-dismissible fade show" role="alert">
+        有 @Model.OpenCount 張訂單尚未結帳
+        <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+    </div>
+}
+
+@if (!Model.IsSearch)
+{
+    <h2 class="h5 mb-3">今天最新 @ManTingEats.Controllers.OrderController.OrderListSize 筆</h2>
+}
+
+@if (Model.Results.TotalCount == 0)
+{
+    <p class="text-muted">@(Model.IsSearch ? "查無符合條件的訂單。" : "今天尚無訂單。")</p>
 }
 else
 {
@@ -29,7 +76,7 @@ else
                 </tr>
             </thead>
             <tbody>
-                @foreach (var order in Model.Items)
+                @foreach (var order in Model.Results.Items)
                 {
                     var badgeClass = order.Status switch
                     {
@@ -61,5 +108,8 @@ else
         </table>
         </div>
     </div>
-    <partial name="_Pagination" model="Model" />
+    @if (Model.IsSearch)
+    {
+        <partial name="_Pagination" model="Model.Results" />
+    }
 }
