@@ -43,6 +43,9 @@
                             <li class="nav-item">
                                 <a class="nav-link text-dark @(currentController == "Reservation" ? "active" : "")" asp-area="" asp-controller="Reservation" asp-action="Index">訂位記錄</a>
                             </li>
+                            <li class="nav-item">
+                                <a class="nav-link text-dark @(currentController == "DailyClosing" ? "active" : "")" asp-area="" asp-controller="DailyClosing" asp-action="Index">日結</a>
+                            </li>
                             @if (isManager)
                             {
                                 <li class="nav-item">

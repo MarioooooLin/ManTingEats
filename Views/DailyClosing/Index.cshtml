@@ -1,0 +1,218 @@
+@model ManTingEats.Models.DailyClosingViewModel
+@using ManTingEats.Controllers
+@{
+    ViewData["Title"] = "日結";
+    var summary = Model.Summary;
+    var latest = Model.LatestClosing;
+    var isManager = User.IsInRole(AppRoles.Manager);
+}
+
+<div class="page-header d-flex justify-content-between align-items-center">
+    <h1 class="mb-0">日結</h1>
+    @if (isManager)
+    {
+        <a asp-action="History" class="btn btn-outline-secondary">日結紀錄</a>
+    }
+</div>
+
+<div class="card mb-4">
+    <div class="card-body">
+        <form asp-action="Index" method="get" class="row g-2 align-items-end">
+            <div class="col-auto">
+                <label class="form-label">營業日</label>
+                <input type="date" name="date" value="@Model.BusinessDate.ToString("yyyy-MM-dd")" class="form-control" required />
+            </div>
+            <div class="col-auto">
+                <button type="submit" class="btn btn-outline-primary">切換</button>
+            </div>
+        </form>
+        <div class="form-text">營業時間跨夜，06:00 前算前一天的營業日</div>
+    </div>
+</div>
+
+@if (latest is not null)
+{
+    <div class="alert alert-info">
+        此營業日已於 @latest.ClosedAt.ToLocalTime().ToString("MM-dd HH:mm") 由 @latest.ClosedByEmployee?.Username 日結：
+        實點 $@latest.CountedCash.ToString("F0")，@DailyClosingController.DifferenceText(latest.Difference)。
+        資料有變動時可重新日結（需填寫原因），每次日結都會保留紀錄。
+    </div>
+}
+
+<div asp-validation-summary="ModelOnly" class="text-danger mb-3"></div>
+
+@if (Model.OpenOrders.Count > 0)
+{
+    <div class="alert alert-danger">
+        <strong>還有 @Model.OpenOrders.Count 張訂單未結帳</strong>，請先結帳或作廢後再日結。
+    </div>
+    <div class="card mb-4">
+        <div class="table-responsive">
+            <table class="table table-hover mb-0">
+                <thead>
+                    <tr>
+                        <th>編號</th>
+                        <th>通路</th>
+                        <th>桌號</th>
+                        <th>建立時間</th>
+                        <th class="text-end">操作</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach (var order in Model.OpenOrders)
+                    {
+                        <tr>
+                            <td>#@order.DailyNumber</td>
+                            <td>@order.Channel.ToDisplayText()</td>
+                            <td>@(order.TableNumber ?? "-")</td>
+                            <td>@order.CreatedAt.ToLocalTime().ToString("yyyy-MM-dd HH:mm")</td>
+                            <td class="text-end">
+                                <a asp-controller="Order" asp-action="Details" asp-route-id="@order.Id" class="btn btn-sm btn-outline-secondary">前往結帳</a>
+                            </td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+    </div>
+}
+
+<div class="row g-3 mb-4">
+    <div class="col-md-4">
+        <div class="card h-100">
+            <div class="card-body">
+                <h6 class="text-muted">已結帳</h6>
+                <p class="display-6 mb-0">@summary.CompletedOrderCount 張</p>
+                <div class="small text-muted mt-1">
+                    作廢 @summary.VoidedOrderCount 張
+                    @if (summary.DiscountTotal > 0)
+                    {
+                        <span>，折扣 $@summary.DiscountTotal.ToString("F0")</span>
+                    }
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-4">
+        <div class="card h-100">
+            <div class="card-body">
+                <h6 class="text-muted">營收</h6>
+                <p class="display-6 mb-0">$@summary.Revenue.ToString("F0")</p>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-4">
+        <div class="card h-100">
+            <div class="card-body">
+                <h6 class="text-muted">支出</h6>
+                <p class="display-6 mb-0">$@summary.ExpenseTotal.ToString("F0")</p>
+            </div>
+        </div>
+    </div>
+</div>
+
+@if (Model.OpenOrders.Count == 0)
+{
+    <div class="row">
+        <div class="col-lg-6">
+            <div class="card">
+                <div class="card-header">現金對帳</div>
+                <div class="card-body">
+                    <form asp-action="Close" method="post" id="closing-form"
+                          data-revenue="@summary.Revenue.ToString("F0")" data-expense="@summary.ExpenseTotal.ToString("F0")"
+                          onsubmit="return confirm('@(Model.IsReclose ? "確定要重新日結？" : "確定要完成日結？")');">
+                        <input type="hidden" name="Form.BusinessDate" value="@Model.BusinessDate.ToString("yyyy-MM-dd")" />
+                        <div class="mb-3">
+                            <label asp-for="Form.OpeningCash" class="form-label"></label>
+                            <div class="input-group">
+                                <span class="input-group-text">$</span>
+                                <input asp-for="Form.OpeningCash" asp-format="{0:F0}" class="form-control" type="number" step="1" inputmode="numeric" data-msg-step="金額需為整數" />
+                            </div>
+                            <span asp-validation-for="Form.OpeningCash" class="text-danger"></span>
+                        </div>
+
+                        <table class="table table-sm mb-3">
+                            <tbody>
+                                <tr><td>零用金</td><td class="text-end" id="opening-text"></td></tr>
+                                <tr><td>＋ 營收</td><td class="text-end">$@summary.Revenue.ToString("F0")</td></tr>
+                                <tr><td>－ 支出</td><td class="text-end">$@summary.ExpenseTotal.ToString("F0")</td></tr>
+                                <tr class="fw-bold"><td>應有現金</td><td class="text-end" id="expected-text"></td></tr>
+                            </tbody>
+                        </table>
+
+                        <div class="mb-3">
+                            <label asp-for="Form.CountedCash" class="form-label"></label>
+                            <div class="input-group">
+                                <span class="input-group-text">$</span>
+                                <input asp-for="Form.CountedCash" class="form-control form-control-lg" type="number" step="1" inputmode="numeric" data-msg-step="金額需為整數" autofocus />
+                            </div>
+                            <span asp-validation-for="Form.CountedCash" class="text-danger"></span>
+                        </div>
+
+                        <p class="fs-5 mb-3">差額：<strong id="difference-text">—</strong></p>
+
+                        <div class="mb-3">
+                            <label asp-for="Form.Note" class="form-label">@(Model.IsReclose ? "重新日結原因（必填）" : "備註")</label>
+                            <input asp-for="Form.Note" class="form-control" maxlength="200"
+                                   placeholder="@(Model.IsReclose ? "例如：補登食材支出" : "差額原因等，選填")" />
+                            <span asp-validation-for="Form.Note" class="text-danger"></span>
+                        </div>
+
+                        <button type="submit" class="btn btn-primary">@(Model.IsReclose ? "重新日結" : "完成日結")</button>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+}
+
+@section Scripts {
+    <script>
+        // 即時計算應有現金與差額；存檔時伺服器會重新計算，這裡只是方便點收時對照
+        (function () {
+            var form = document.getElementById('closing-form');
+            if (!form) {
+                return;
+            }
+
+            var revenue = Number(form.dataset.revenue);
+            var expense = Number(form.dataset.expense);
+            var opening = form.querySelector('[name="Form.OpeningCash"]');
+            var counted = form.querySelector('[name="Form.CountedCash"]');
+
+            function money(value) {
+                return (value < 0 ? '-$' : '$') + Math.abs(value).toLocaleString('en-US');
+            }
+
+            function update() {
+                var expected = Number(opening.value || 0) + revenue - expense;
+                document.getElementById('opening-text').textContent = money(Number(opening.value || 0));
+                document.getElementById('expected-text').textContent = money(expected);
+
+                var differenceText = document.getElementById('difference-text');
+                differenceText.className = '';
+                if (counted.value === '') {
+                    differenceText.textContent = '—';
+                    return;
+                }
+
+                var difference = Number(counted.value) - expected;
+                if (difference > 0) {
+                    differenceText.textContent = '多 ' + money(difference);
+                    differenceText.className = 'text-warning';
+                } else if (difference < 0) {
+                    differenceText.textContent = '少 ' + money(-difference);
+                    differenceText.className = 'text-danger';
+                } else {
+                    differenceText.textContent = '現金相符';
+                    differenceText.className = 'text-success';
+                }
+            }
+
+            opening.addEventListener('input', update);
+            counted.addEventListener('input', update);
+            update();
+        })();
+    </script>
+    <partial name="_ValidationScriptsPartial" />
+}

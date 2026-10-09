@@ -4,7 +4,7 @@
 
 @if (User.Identity?.IsAuthenticated == true)
 {
-    // 員工只能使用訂單與訂位（v7），首頁不顯示店長限定功能的卡片
+    // 員工只能使用訂單、訂位（v7）與日結（v13），首頁不顯示店長限定功能的卡片
     // 卡片內按鈕加上 Bootstrap 的 stretched-link：整張卡片都可點擊，iPad 上比只點按鈕好按；按鈕保留作為可點擊的提示
     var isManager = User.IsInRole(AppRoles.Manager);
     <div class="page-header">
@@ -12,7 +12,7 @@
         <p class="text-muted">ManTingEats 內部管理後台</p>
     </div>
 
-    <div class="row row-cols-1 row-cols-sm-2 row-cols-xl-5 g-3">
+    <div class="row row-cols-1 row-cols-sm-2 row-cols-xl-3 g-3">
         <div class="col">
             <div class="card dashboard-card card-highlight h-100">
                 <div class="card-body">
@@ -43,6 +43,16 @@
                     <h5 class="card-title">訂位記錄</h5>
                     <p class="card-text text-muted">登記與查詢顧客訂位。</p>
                     <a asp-controller="Reservation" asp-action="Index" class="btn btn-primary stretched-link">前往訂位記錄</a>
+                </div>
+            </div>
+        </div>
+        <div class="col">
+            <div class="card dashboard-card h-100">
+                <div class="card-body">
+                    <div class="card-icon">🧮</div>
+                    <h5 class="card-title">日結</h5>
+                    <p class="card-text text-muted">打烊時點收現金，與當天營收、支出對帳。</p>
+                    <a asp-controller="DailyClosing" asp-action="Index" class="btn btn-primary stretched-link">前往日結</a>
                 </div>
             </div>
         </div>

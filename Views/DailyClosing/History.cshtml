@@ -1,0 +1,63 @@
+@model ManTingEats.Models.DailyClosingHistoryViewModel
+@using ManTingEats.Controllers
+@{
+    ViewData["Title"] = "日結紀錄";
+}
+
+<div class="page-header d-flex justify-content-between align-items-center">
+    <h1 class="mb-0">日結紀錄</h1>
+    <a asp-action="Index" class="btn btn-primary">前往日結</a>
+</div>
+
+@if (Model.Page.TotalCount == 0)
+{
+    <p class="text-muted">尚無日結紀錄。</p>
+}
+else
+{
+    <p class="text-muted">每個營業日顯示最後一次日結；重新日結過的可點「查看」看每一次的內容。</p>
+    <div class="card">
+        <div class="table-responsive">
+        <table class="table table-hover mb-0">
+            <thead>
+                <tr>
+                    <th>營業日</th>
+                    <th class="text-end">營收</th>
+                    <th class="text-end">支出</th>
+                    <th class="text-end">應有現金</th>
+                    <th class="text-end">實點</th>
+                    <th>差額</th>
+                    <th>日結人</th>
+                    <th class="text-end">操作</th>
+                </tr>
+            </thead>
+            <tbody>
+                @foreach (var row in Model.Rows)
+                {
+                    var closing = row.Latest;
+                    var differenceClass = closing.Difference < 0 ? "text-danger" : closing.Difference > 0 ? "text-warning" : "text-success";
+                    <tr>
+                        <td>@closing.BusinessDate.ToString("yyyy-MM-dd")</td>
+                        <td class="text-end">$@closing.Revenue.ToString("F0")</td>
+                        <td class="text-end">$@closing.ExpenseTotal.ToString("F0")</td>
+                        <td class="text-end">$@closing.ExpectedCash.ToString("F0")</td>
+                        <td class="text-end">$@closing.CountedCash.ToString("F0")</td>
+                        <td class="@differenceClass">@DailyClosingController.DifferenceText(closing.Difference)</td>
+                        <td>
+                            @closing.ClosedByEmployee?.Username
+                            @if (row.ClosingCount > 1)
+                            {
+                                <span class="badge badge-soft-secondary">結 @row.ClosingCount 次</span>
+                            }
+                        </td>
+                        <td class="text-end text-nowrap">
+                            <a asp-action="Details" asp-route-date="@closing.BusinessDate.ToString("yyyy-MM-dd")" class="btn btn-sm btn-outline-secondary">查看</a>
+                        </td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+        </div>
+    </div>
+    <partial name="_Pagination" model="Model.Page" />
+}

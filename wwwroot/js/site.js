@@ -46,7 +46,7 @@
             altInput: withTime,
             altFormat: 'Y-m-d H:i',
             onReady: function (selectedDates, dateStr, fp) {
-                if (!input.hasAttribute('data-val-required')) {
+                if (!input.required && !input.hasAttribute('data-val-required')) {
                     addClearButton(fp);
                 }
             }

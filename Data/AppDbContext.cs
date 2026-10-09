@@ -17,6 +17,7 @@ public sealed class AppDbContext : DbContext
     public DbSet<Expense> Expenses => Set<Expense>();
     public DbSet<AddOn> AddOns => Set<AddOn>();
     public DbSet<OrderItemAddOn> OrderItemAddOns => Set<OrderItemAddOn>();
+    public DbSet<DailyClosing> DailyClosings => Set<DailyClosing>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -105,6 +106,23 @@ public sealed class AppDbContext : DbContext
         {
             entity.Property(e => e.Amount).HasPrecision(10, 2);
             entity.Property(e => e.Note).HasMaxLength(200);
+        });
+
+        modelBuilder.Entity<DailyClosing>(entity =>
+        {
+            // 依營業日查詢最後一次日結；同一營業日可有多筆（重新日結），故不設唯一
+            entity.HasIndex(e => e.BusinessDate);
+            entity.Property(e => e.OpeningCash).HasPrecision(10, 2);
+            entity.Property(e => e.Revenue).HasPrecision(10, 2);
+            entity.Property(e => e.ExpenseTotal).HasPrecision(10, 2);
+            entity.Property(e => e.DiscountTotal).HasPrecision(10, 2);
+            entity.Property(e => e.CountedCash).HasPrecision(10, 2);
+            entity.Property(e => e.Note).HasMaxLength(200);
+
+            entity.HasOne(e => e.ClosedByEmployee)
+                .WithMany()
+                .HasForeignKey(e => e.ClosedByEmployeeId)
+                .OnDelete(DeleteBehavior.Restrict);
         });
     }
 }

@@ -1,0 +1,61 @@
+@model List<ManTingEats.Models.Entities.DailyClosing>
+@using ManTingEats.Controllers
+@{
+    var businessDate = (DateTime)ViewData["BusinessDate"]!;
+    ViewData["Title"] = $"{businessDate:yyyy-MM-dd} 日結";
+}
+
+<div class="page-header d-flex justify-content-between align-items-center">
+    <h1 class="mb-0">@businessDate.ToString("yyyy-MM-dd") 日結</h1>
+    <a asp-action="History" class="btn btn-outline-secondary">返回日結紀錄</a>
+</div>
+
+@if (Model.Count > 1)
+{
+    <p class="text-muted">此營業日共日結 @Model.Count 次，最上面為最後一次（以此為準）。</p>
+}
+
+@foreach (var (closing, index) in Model.Select((c, i) => (c, i)))
+{
+    var differenceClass = closing.Difference < 0 ? "text-danger" : closing.Difference > 0 ? "text-warning" : "text-success";
+    <div class="card mb-3">
+        <div class="card-header d-flex justify-content-between">
+            <span>
+                @closing.ClosedAt.ToLocalTime().ToString("yyyy-MM-dd HH:mm") · @closing.ClosedByEmployee?.Username
+            </span>
+            @if (index == 0)
+            {
+                <span class="badge badge-soft-success">目前採用</span>
+            }
+        </div>
+        <div class="card-body">
+            <div class="row">
+                <div class="col-md-6">
+                    <table class="table table-sm mb-0">
+                        <tbody>
+                            <tr><td>已結帳</td><td class="text-end">@closing.CompletedOrderCount 張</td></tr>
+                            <tr><td>作廢</td><td class="text-end">@closing.VoidedOrderCount 張</td></tr>
+                            <tr><td>折扣</td><td class="text-end">$@closing.DiscountTotal.ToString("F0")</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+                <div class="col-md-6">
+                    <table class="table table-sm mb-0">
+                        <tbody>
+                            <tr><td>零用金</td><td class="text-end">$@closing.OpeningCash.ToString("F0")</td></tr>
+                            <tr><td>＋ 營收</td><td class="text-end">$@closing.Revenue.ToString("F0")</td></tr>
+                            <tr><td>－ 支出</td><td class="text-end">$@closing.ExpenseTotal.ToString("F0")</td></tr>
+                            <tr class="fw-bold"><td>應有現金</td><td class="text-end">$@closing.ExpectedCash.ToString("F0")</td></tr>
+                            <tr><td>實點現金</td><td class="text-end">$@closing.CountedCash.ToString("F0")</td></tr>
+                            <tr class="fw-bold"><td>差額</td><td class="text-end @differenceClass">@DailyClosingController.DifferenceText(closing.Difference)</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+            @if (!string.IsNullOrEmpty(closing.Note))
+            {
+                <p class="mt-3 mb-0"><span class="text-muted">備註：</span>@closing.Note</p>
+            }
+        </div>
+    </div>
+}
