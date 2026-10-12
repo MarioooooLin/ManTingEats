@@ -435,16 +435,61 @@ public sealed class OrderControllerTests : IDisposable
     }
 
     [Fact]
-    public async Task CancelPendingItems_NothingEverPrinted_VoidsOrder()
+    public async Task CancelPendingItems_NothingEverPrinted_DeletesOrder()
     {
+        // v15：未成立（從未出單）的訂單取消即刪除，連同品項與加料，不留作廢紀錄
         var orderId = _host.SeedOrder(OrderStatus.Open, Item(), Item());
+        await _host.CreateController().AddItems(orderId, Batch(AddCommand(CustomItemId, 1, 2, (EggAddOnId, 1))));
+
+        var result = await _host.CreateController().CancelPendingItems(orderId);
+
+        Assert.Equal("Index", Assert.IsType<RedirectToActionResult>(result).ActionName);
+        using var db = _host.CreateDbContext();
+        Assert.False(db.Orders.Any(o => o.Id == orderId));
+        Assert.Empty(db.OrderItems);
+        Assert.Empty(db.OrderItemAddOns);
+    }
+
+    [Fact]
+    public async Task CancelPendingItems_EmptyOrder_DeletesOrder()
+    {
+        var orderId = _host.SeedOrder();
 
         await _host.CreateController().CancelPendingItems(orderId);
 
+        using var db = _host.CreateDbContext();
+        Assert.False(db.Orders.Any(o => o.Id == orderId));
+    }
+
+    [Fact]
+    public async Task CancelPendingItems_AfterPrinted_Rejected()
+    {
+        // 已成立的訂單不可取消：整張須作廢、待出單品項須逐項移除，訂單與品項皆不變
+        var orderId = _host.SeedOrder(OrderStatus.Open, Item(isPrinted: true), Item());
+        var controller = _host.CreateController();
+
+        await controller.CancelPendingItems(orderId);
+
+        Assert.Equal("訂單已出單，無法取消；整張訂單請使用「作廢」，個別待出單品項請逐項移除。", controller.TempData["Error"]);
         var order = _host.LoadOrder(orderId);
-        Assert.Empty(order.Items);
-        Assert.Equal(OrderStatus.Voided, order.Status);
-        Assert.Equal(EmployeeId, order.VoidedByEmployeeId);
+        Assert.Equal(OrderStatus.Open, order.Status);
+        Assert.Equal(2, order.Items.Count);
+        Assert.Equal(200m, order.TotalAmount);
+    }
+
+    [Fact]
+    public async Task Create_AfterLatestOrderCancelled_ReusesDailyNumber()
+    {
+        await _host.CreateController().Create(new CreateOrderCommand(OrderChannel.Takeout, null));
+        using (var db = _host.CreateDbContext())
+        {
+            await _host.CreateController().CancelPendingItems(db.Orders.Single().Id);
+        }
+
+        await _host.CreateController().Create(new CreateOrderCommand(OrderChannel.Takeout, null));
+
+        using var check = _host.CreateDbContext();
+        Assert.Equal(1, check.Orders.Single().DailyNumber);
     }
 
     // ── 出單（PassPRNT） ────────────────────────────────────────
@@ -631,6 +676,39 @@ public sealed class OrderControllerTests : IDisposable
         Assert.Equal(OrderStatus.Voided, order.Status);
         Assert.Equal("客人取消", order.VoidReason);
         Assert.Equal(EmployeeId, order.VoidedByEmployeeId);
+    }
+
+    [Fact]
+    public async Task Void_WithPendingItems_RemovesPendingAndRecalculatesTotal()
+    {
+        // v15：作廢時刪除未出單品項（含加料），作廢紀錄與總金額只留實際出過單的部分
+        var orderId = _host.SeedOrder(OrderStatus.Open, Item(quantity: 2, isPrinted: true));
+        await _host.CreateController().AddItems(orderId, Batch(
+            AddCommand(SimpleItemId),
+            AddCommand(CustomItemId, 1, 2, (EggAddOnId, 1))));
+        var controller = _host.CreateController();
+
+        await controller.Void(orderId, new VoidOrderCommand("客人離開"));
+
+        var order = _host.LoadOrder(orderId);
+        Assert.Equal(OrderStatus.Voided, order.Status);
+        Assert.True(Assert.Single(order.Items).IsPrinted);
+        Assert.Equal(200m, order.TotalAmount);
+        Assert.Equal("訂單已作廢，並移除 2 項未出單品項。", controller.TempData["Success"]);
+        using var db = _host.CreateDbContext();
+        Assert.Empty(db.OrderItemAddOns);
+    }
+
+    [Fact]
+    public async Task Void_NeverPrinted_RejectedUseCancelInstead()
+    {
+        var orderId = _host.SeedOrder(OrderStatus.Open, Item());
+        var controller = _host.CreateController();
+
+        await controller.Void(orderId, new VoidOrderCommand("誤觸"));
+
+        Assert.Equal("訂單尚未出單，請使用「取消」。", controller.TempData["Error"]);
+        Assert.Equal(OrderStatus.Open, _host.LoadOrder(orderId).Status);
     }
 
     [Fact]

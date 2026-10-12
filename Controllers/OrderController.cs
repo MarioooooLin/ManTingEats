@@ -449,25 +449,22 @@ public sealed class OrderController : Controller
             return RedirectToAction(nameof(Details), new { id = orderId });
         }
 
-        var pendingItems = order.Items.Where(i => !i.IsPrinted).ToList();
-        foreach (var item in pendingItems)
+        // 「取消」只用於未成立（從未出單）的訂單（v15）；已成立的訂單廚房已收到，整張不要須「作廢」留下原因，
+        // 個別待出單品項則逐項「移除」。畫面上已成立的訂單不會顯示「取消」，此處為後端再檢查一次
+        if (order.Items.Any(i => i.IsPrinted))
         {
-            order.Items.Remove(item);
-            _db.OrderItems.Remove(item);
-        }
-        order.TotalAmount = ComputeTotal(order);
-
-        // 訂單從未出過單，代表廚房從未收到通知，直接連同訂單一併作廢，不需使用者輸入理由
-        if (order.Items.Count == 0)
-        {
-            order.Status = OrderStatus.Voided;
-            order.VoidReason = "未確認出單，使用者取消";
-            order.VoidedByEmployeeId = CurrentEmployeeId;
+            TempData["Error"] = "訂單已出單，無法取消；整張訂單請使用「作廢」，個別待出單品項請逐項移除。";
+            return RedirectToAction(nameof(Details), new { id = orderId });
         }
 
+        // 未成立（誤觸、測試）：直接刪除整張訂單，不留單號、不進訂單列表與日結；品項與加料由資料庫連動刪除。
+        // 資料庫不留紀錄，因此在伺服器日誌記下操作者與內容，有疑問時可查
+        _logger.LogInformation("員工 {EmployeeId} 取消未成立訂單 {OrderId}（單號 #{DailyNumber}，{ItemCount} 項品項），已刪除",
+            CurrentEmployeeId, order.Id, order.DailyNumber, order.Items.Count);
+        _db.Orders.Remove(order);
         await _db.SaveChangesAsync();
-        TempData["Success"] = "已取消。";
-        return RedirectToAction(nameof(Details), new { id = orderId });
+        TempData["Success"] = $"已取消訂單 #{order.DailyNumber}。";
+        return RedirectToAction(nameof(Index));
     }
 
     [HttpPost]
@@ -580,7 +577,10 @@ public sealed class OrderController : Controller
     [ValidateAntiForgeryToken]
     public async Task<IActionResult> Void(int id, VoidOrderCommand command)
     {
-        var order = await _db.Orders.FindAsync(id);
+        var order = await _db.Orders
+            .Include(o => o.Items)
+                .ThenInclude(i => i.AddOns)
+            .SingleOrDefaultAsync(o => o.Id == id);
         if (order is null)
         {
             return NotFound();
@@ -592,18 +592,37 @@ public sealed class OrderController : Controller
             return RedirectToAction(nameof(Details), new { id });
         }
 
+        // 作廢只用於已成立（出過單）的訂單（v15）；未成立的訂單請用「取消」直接刪除
+        if (!order.Items.Any(i => i.IsPrinted))
+        {
+            TempData["Error"] = "訂單尚未出單，請使用「取消」。";
+            return RedirectToAction(nameof(Details), new { id });
+        }
+
         if (!ModelState.IsValid)
         {
             TempData["Error"] = string.Join("；", ModelState.Values.SelectMany(v => v.Errors).Select(e => e.ErrorMessage));
             return RedirectToAction(nameof(Details), new { id });
         }
 
+        // 未出單品項廚房從未收到，作廢時一併刪除（v15，2026-10-13 使用者決議），
+        // 讓作廢紀錄與總金額只反映實際出過單的品項，與紙本出單一致；結帳前必須出完單，因此只有未結帳訂單會有
+        var pendingItems = order.Items.Where(i => !i.IsPrinted).ToList();
+        foreach (var item in pendingItems)
+        {
+            order.Items.Remove(item);
+            _db.OrderItems.Remove(item);
+        }
+        order.TotalAmount = ComputeTotal(order);
+
         // 作廢需留下操作者與原因，供稽核追蹤；不列印作廢通知，由店長在原出單紙本上手動打叉
         order.Status = OrderStatus.Voided;
         order.VoidReason = command.Reason;
         order.VoidedByEmployeeId = CurrentEmployeeId;
         await _db.SaveChangesAsync();
-        TempData["Success"] = "訂單已作廢。";
+        TempData["Success"] = pendingItems.Count > 0
+            ? $"訂單已作廢，並移除 {pendingItems.Count} 項未出單品項。"
+            : "訂單已作廢。";
 
         return RedirectToAction(nameof(Details), new { id });
     }

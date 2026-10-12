@@ -295,7 +295,8 @@
                     }
                     @if (!hasPrintedItems)
                     {
-                        <form asp-action="CancelPendingItems" method="post" class="d-inline" onsubmit="return confirm('確定要取消嗎？');">
+                        @* 未成立（從未出單）的訂單取消即刪除（v15），不留單號、不進訂單列表 *@
+                        <form asp-action="CancelPendingItems" method="post" class="d-inline" onsubmit="return confirm('確定要取消此訂單？訂單會直接刪除，不會留下紀錄。');">
                             <input type="hidden" name="orderId" value="@order.Id" />
                             <button type="submit" class="btn btn-outline-danger">取消</button>
                         </form>
@@ -391,17 +392,15 @@
 
 @if (order.Status == OrderStatus.Completed || (order.Status == OrderStatus.Open && order.Items.Any(i => i.IsPrinted)))
 {
-    var isCancelBeforeCheckout = order.Status == OrderStatus.Open;
-    var voidTitle = isCancelBeforeCheckout ? "取消訂單" : "作廢訂單";
-    var voidConfirmText = isCancelBeforeCheckout
-        ? "確定要取消此訂單？此操作將記錄稽核紀錄且無法復原。"
-        : "確定要作廢此訂單？此操作將記錄稽核紀錄且無法復原。";
+    @* 已成立（出過單）的訂單不論是否結帳，一律稱「作廢」（v15），與未成立訂單的「取消」（直接刪除）區分 *@
+    var voidTitle = "作廢訂單";
+    var voidConfirmText = "確定要作廢此訂單？此操作將記錄稽核紀錄且無法復原。";
     <div class="card border-danger">
         <div class="card-header text-danger">@voidTitle</div>
         <div class="card-body">
             <form asp-action="Void" asp-route-id="@order.Id" method="post" class="row g-2 align-items-end" onsubmit="return confirm('@voidConfirmText');">
                 <div class="col-auto flex-grow-1">
-                    <label class="form-label">@(isCancelBeforeCheckout ? "取消原因" : "作廢原因")</label>
+                    <label class="form-label">作廢原因</label>
                     <input type="text" name="Reason" class="form-control" maxlength="200" required />
                 </div>
                 <div class="col-auto">
