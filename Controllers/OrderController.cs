@@ -427,6 +427,13 @@ public sealed class OrderController : Controller
         OrderTicket.MarkPrinted(order, OrderTicket.ParseItemIds(items));
         await _db.SaveChangesAsync();
         TempData["Success"] = "已出單。";
+
+        // 外帶點完即結帳（v16）：出完單、已無待出單品項時，回到訂單頁自動打開結帳視窗；
+        // 仍須出完單才能結帳（v5），因此只在出單成功後觸發，出單失敗不會跳出
+        if (order.Channel == OrderChannel.Takeout && order.Status == OrderStatus.Open && order.Items.All(i => i.IsPrinted))
+        {
+            TempData["AutoCheckout"] = true;
+        }
         return RedirectToAction(nameof(Details), new { id = orderId });
     }
 

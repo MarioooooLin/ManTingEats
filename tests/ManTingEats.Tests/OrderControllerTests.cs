@@ -578,6 +578,49 @@ public sealed class OrderControllerTests : IDisposable
         Assert.False(order.Items.Single(i => i.Id == ids[1]).IsPrinted);
     }
 
+    // ── 外帶點完即結帳（v16） ───────────────────────────────────
+
+    [Fact]
+    public async Task MarkPrinted_TakeoutAllPrinted_OpensCheckout()
+    {
+        var orderId = _host.SeedOrder(OrderStatus.Open, Item(), Item());   // SeedOrder 為外帶
+        var ids = string.Join(',', _host.LoadOrder(orderId).Items.Select(i => i.Id));
+        var controller = _host.CreateController();
+
+        await controller.MarkPrinted(orderId, ids);
+
+        Assert.Equal(true, controller.TempData["AutoCheckout"]);
+    }
+
+    [Fact]
+    public async Task MarkPrinted_TakeoutStillPending_DoesNotOpenCheckout()
+    {
+        var orderId = _host.SeedOrder(OrderStatus.Open, Item(), Item());
+        var firstId = _host.LoadOrder(orderId).Items.Min(i => i.Id);
+        var controller = _host.CreateController();
+
+        await controller.MarkPrinted(orderId, firstId.ToString());
+
+        Assert.Null(controller.TempData["AutoCheckout"]);
+    }
+
+    [Fact]
+    public async Task MarkPrinted_DineIn_DoesNotOpenCheckout()
+    {
+        var orderId = _host.SeedOrder(OrderStatus.Open, Item());
+        using (var db = _host.CreateDbContext())
+        {
+            db.Orders.Single(o => o.Id == orderId).Channel = OrderChannel.DineIn;
+            db.SaveChanges();
+        }
+        var ids = string.Join(',', _host.LoadOrder(orderId).Items.Select(i => i.Id));
+        var controller = _host.CreateController();
+
+        await controller.MarkPrinted(orderId, ids);
+
+        Assert.Null(controller.TempData["AutoCheckout"]);
+    }
+
     [Fact]
     public async Task Reprint_VoidedOrder_Rejected()
     {

@@ -319,7 +319,9 @@
     </div>
 
     @* 結帳收款（v6）：必須「收剛好」或輸入收款金額才能結帳；收款金額只用來算找零，不存資料庫 *@
-    <div class="modal fade" id="checkoutModal" tabindex="-1" aria-labelledby="checkoutModalTitle" aria-hidden="true">
+    @* 外帶出單成功後自動打開（v16），由 MarkPrinted 帶 AutoCheckout 標記；讀一次即消失，重新整理不會再跳出 *@
+    <div class="modal fade" id="checkoutModal" tabindex="-1" aria-labelledby="checkoutModalTitle" aria-hidden="true"
+         data-auto-open="@((TempData["AutoCheckout"] is true && unprintedCount == 0).ToString().ToLowerInvariant())">
         <div class="modal-dialog modal-dialog-centered">
             <div class="modal-content">
                 <div class="modal-header">
@@ -625,11 +627,17 @@
                 exactButton.disabled = true;
             });
             // 每次打開結帳視窗都從原價、空白金額開始，避免沿用上次輸入
-            document.getElementById('checkoutModal').addEventListener('show.bs.modal', function () {
+            var checkoutModal = document.getElementById('checkoutModal');
+            checkoutModal.addEventListener('show.bs.modal', function () {
                 input.value = '';
                 setDiscountOpen(false);
             });
             update();
+
+            // 外帶點完即結帳（v16）：出單成功回到本頁時直接打開結帳視窗；不結帳（例如客人還要加點）關掉即可
+            if (checkoutModal.dataset.autoOpen === 'true') {
+                bootstrap.Modal.getOrCreateInstance(checkoutModal).show();
+            }
         })();
 
         // ── 整批點餐（v14）：品項先放進「本次點餐」清單，按「送出」才一次寫入 ──
