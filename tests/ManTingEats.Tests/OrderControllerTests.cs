@@ -19,6 +19,8 @@ public sealed class OrderControllerTests : IDisposable
         new(menuItemId, quantity, null, spice,
             addOns.Length == 0 ? null : addOns.Select(a => new AddOnSelectionCommand(a.Id, a.Qty)).ToList());
 
+    private static AddOrderItemsCommand Batch(params AddOrderItemCommand[] items) => new(items.ToList());
+
     // ── 建立訂單 ────────────────────────────────────────────────
 
     [Fact]
@@ -158,11 +160,11 @@ public sealed class OrderControllerTests : IDisposable
     // ── 加點與金額計算 ──────────────────────────────────────────
 
     [Fact]
-    public async Task AddItem_SimpleItem_TotalIsPriceTimesQuantity()
+    public async Task AddItems_SimpleItem_TotalIsPriceTimesQuantity()
     {
         var orderId = _host.SeedOrder();
 
-        await _host.CreateController().AddItem(orderId, AddCommand(SimpleItemId, quantity: 3));
+        await _host.CreateController().AddItems(orderId, Batch(AddCommand(SimpleItemId, quantity: 3)));
 
         var order = _host.LoadOrder(orderId);
         var item = Assert.Single(order.Items);
@@ -174,11 +176,11 @@ public sealed class OrderControllerTests : IDisposable
     }
 
     [Fact]
-    public async Task AddItem_CustomItem_SingleServingAddOnsPriced()
+    public async Task AddItems_CustomItem_SingleServingAddOnsPriced()
     {
         var orderId = _host.SeedOrder();
 
-        await _host.CreateController().AddItem(orderId, AddCommand(CustomItemId, quantity: 1, spice: 3, (EggAddOnId, 2)));
+        await _host.CreateController().AddItems(orderId, Batch(AddCommand(CustomItemId, quantity: 1, spice: 3, (EggAddOnId, 2))));
 
         var order = _host.LoadOrder(orderId);
         var item = Assert.Single(order.Items);
@@ -191,12 +193,12 @@ public sealed class OrderControllerTests : IDisposable
     }
 
     [Fact]
-    public async Task AddItem_CustomItemMultipleServings_AddOnsAppliedToEachServing()
+    public async Task AddItems_CustomItemMultipleServings_AddOnsAppliedToEachServing()
     {
         var orderId = _host.SeedOrder();
 
         // v10：客製化品項可點多份，加料數量為每份的量，存成同一行
-        await _host.CreateController().AddItem(orderId, AddCommand(CustomItemId, quantity: 3, spice: 2, (EggAddOnId, 2)));
+        await _host.CreateController().AddItems(orderId, Batch(AddCommand(CustomItemId, quantity: 3, spice: 2, (EggAddOnId, 2))));
 
         var order = _host.LoadOrder(orderId);
         var item = Assert.Single(order.Items);
@@ -211,8 +213,8 @@ public sealed class OrderControllerTests : IDisposable
     public async Task RemoveItem_CustomItemMultipleServings_RecalculatesTotalWithAddOns()
     {
         var orderId = _host.SeedOrder();
-        await _host.CreateController().AddItem(orderId, AddCommand(CustomItemId, quantity: 2, spice: 1, (EggAddOnId, 1)));
-        await _host.CreateController().AddItem(orderId, AddCommand(SimpleItemId, quantity: 1));
+        await _host.CreateController().AddItems(orderId, Batch(AddCommand(CustomItemId, quantity: 2, spice: 1, (EggAddOnId, 1))));
+        await _host.CreateController().AddItems(orderId, Batch(AddCommand(SimpleItemId, quantity: 1)));
         Assert.Equal(360m, _host.LoadOrder(orderId).TotalAmount);  // (120 + 10) x 2 + 100
 
         var simpleId = _host.LoadOrder(orderId).Items.Single(i => i.MenuItemId == SimpleItemId).Id;
@@ -222,21 +224,21 @@ public sealed class OrderControllerTests : IDisposable
     }
 
     [Fact]
-    public async Task AddItem_CustomItemWithoutSpice_DefaultsToOne()
+    public async Task AddItems_CustomItemWithoutSpice_DefaultsToOne()
     {
         var orderId = _host.SeedOrder();
 
-        await _host.CreateController().AddItem(orderId, AddCommand(CustomItemId));
+        await _host.CreateController().AddItems(orderId, Batch(AddCommand(CustomItemId)));
 
         Assert.Equal(1, Assert.Single(_host.LoadOrder(orderId).Items).SpiceLevel);
     }
 
     [Fact]
-    public async Task AddItem_AddOnsOnItemNotSupportingThem_AreIgnored()
+    public async Task AddItems_AddOnsOnItemNotSupportingThem_AreIgnored()
     {
         var orderId = _host.SeedOrder();
 
-        await _host.CreateController().AddItem(orderId, AddCommand(SimpleItemId, 1, null, (EggAddOnId, 1)));
+        await _host.CreateController().AddItems(orderId, Batch(AddCommand(SimpleItemId, 1, null, (EggAddOnId, 1))));
 
         var order = _host.LoadOrder(orderId);
         Assert.Empty(Assert.Single(order.Items).AddOns);
@@ -244,34 +246,34 @@ public sealed class OrderControllerTests : IDisposable
     }
 
     [Fact]
-    public async Task AddItem_InactiveAddOn_RejectedAndNothingAdded()
+    public async Task AddItems_InactiveAddOn_RejectedAndNothingAdded()
     {
         var orderId = _host.SeedOrder();
         var controller = _host.CreateController();
 
-        await controller.AddItem(orderId, AddCommand(CustomItemId, 1, null, (InactiveAddOnId, 1)));
+        await controller.AddItems(orderId, Batch(AddCommand(CustomItemId, 1, null, (InactiveAddOnId, 1))));
 
-        Assert.Equal("部分加料已下架，請重新選擇。", controller.TempData["Error"]);
+        Assert.Equal("爆辣冷麵 的部分加料已下架，請重新選擇。", controller.TempData["Error"]);
         Assert.Empty(_host.LoadOrder(orderId).Items);
     }
 
     [Fact]
-    public async Task AddItem_InactiveMenuItem_Rejected()
+    public async Task AddItems_InactiveMenuItem_Rejected()
     {
         var orderId = _host.SeedOrder();
         var controller = _host.CreateController();
 
-        await controller.AddItem(orderId, AddCommand(InactiveItemId));
+        await controller.AddItems(orderId, Batch(AddCommand(InactiveItemId)));
 
-        Assert.Equal("品項不存在或已下架。", controller.TempData["Error"]);
+        Assert.Equal("品項不存在或已下架，請重新選擇。", controller.TempData["Error"]);
         Assert.Empty(_host.LoadOrder(orderId).Items);
     }
 
     [Fact]
-    public async Task AddItem_PriceChangedLater_ExistingItemKeepsOrderedPrice()
+    public async Task AddItems_PriceChangedLater_ExistingItemKeepsOrderedPrice()
     {
         var orderId = _host.SeedOrder();
-        await _host.CreateController().AddItem(orderId, AddCommand(SimpleItemId));
+        await _host.CreateController().AddItems(orderId, Batch(AddCommand(SimpleItemId)));
 
         using (var db = _host.CreateDbContext())
         {
@@ -280,7 +282,7 @@ public sealed class OrderControllerTests : IDisposable
         }
 
         // 再加點一份同品項：新品項用新價，舊品項維持點餐當下的價格
-        await _host.CreateController().AddItem(orderId, AddCommand(SimpleItemId));
+        await _host.CreateController().AddItems(orderId, Batch(AddCommand(SimpleItemId)));
         var order = _host.LoadOrder(orderId);
         Assert.Equal([100m, 999m], order.Items.OrderBy(i => i.Id).Select(i => i.UnitPrice));
         Assert.Equal(1099m, order.TotalAmount);
@@ -289,15 +291,134 @@ public sealed class OrderControllerTests : IDisposable
     [Theory]
     [InlineData(OrderStatus.Completed)]
     [InlineData(OrderStatus.Voided)]
-    public async Task AddItem_ClosedOrder_Rejected(OrderStatus status)
+    public async Task AddItems_ClosedOrder_Rejected(OrderStatus status)
     {
         var orderId = _host.SeedOrder(status, Item(isPrinted: true));
         var controller = _host.CreateController();
 
-        await controller.AddItem(orderId, AddCommand(SimpleItemId));
+        await controller.AddItems(orderId, Batch(AddCommand(SimpleItemId)));
 
         Assert.Equal("訂單已鎖定，無法加點。", controller.TempData["Error"]);
         Assert.Single(_host.LoadOrder(orderId).Items);
+    }
+
+    // ── 整批點餐（v14） ─────────────────────────────────────────
+
+    [Fact]
+    public async Task AddItems_MultipleItems_AllSavedInOneBatch()
+    {
+        var orderId = _host.SeedOrder();
+        var controller = _host.CreateController();
+
+        await controller.AddItems(orderId, Batch(
+            AddCommand(SimpleItemId, quantity: 2),
+            AddCommand(CustomItemId, quantity: 1, spice: 4, (EggAddOnId, 1)),
+            AddCommand(CustomItemId, quantity: 2, spice: 0)));
+
+        var order = _host.LoadOrder(orderId);
+        Assert.Equal(3, order.Items.Count);
+        Assert.All(order.Items, i => Assert.False(i.IsPrinted));
+        Assert.Equal(200m + 130m + 240m, order.TotalAmount);
+        Assert.Equal("已送出 3 項，共 5 份。", controller.TempData["Success"]);
+        Assert.Equal(true, controller.TempData["AutoPrint"]);   // 非手機：送出即出單
+    }
+
+    private const string IPhoneUserAgent = "Mozilla/5.0 (iPhone; CPU iPhone OS 18_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/18.0 Mobile/15E148 Safari/604.1";
+
+    [Fact]
+    public async Task AddItems_FromPhone_NoAutoPrintAndAsksToPrintOnIPad()
+    {
+        var orderId = _host.SeedOrder();
+        var controller = _host.CreateController();
+        controller.Request.Headers.UserAgent = IPhoneUserAgent;
+
+        await controller.AddItems(orderId, Batch(AddCommand(SimpleItemId, quantity: 2)));
+
+        Assert.Equal("已送出 1 項，共 2 份，請到 iPad 按「確認訂單」出單。", controller.TempData["Success"]);
+        Assert.Null(controller.TempData["AutoPrint"]);
+        Assert.False(Assert.Single(_host.LoadOrder(orderId).Items).IsPrinted);
+    }
+
+    [Fact]
+    public async Task AddItems_Rejected_NoAutoPrint()
+    {
+        var orderId = _host.SeedOrder();
+        var controller = _host.CreateController();
+
+        await controller.AddItems(orderId, Batch(AddCommand(InactiveItemId)));
+
+        Assert.Null(controller.TempData["AutoPrint"]);
+    }
+
+    [Fact]
+    public async Task Index_ShowsPendingPrintCountForOpenOrdersOnly()
+    {
+        var pendingId = _host.SeedOrder(OrderStatus.Open, Item(isPrinted: true), Item(), Item());
+        var printedId = _host.SeedOrder(OrderStatus.Open, Item(isPrinted: true));
+        var voidedId = _host.SeedOrder(OrderStatus.Voided, Item());
+
+        var model = await IndexAsync();
+
+        Assert.Equal(2, model.PendingPrintCounts[pendingId]);
+        Assert.False(model.PendingPrintCounts.ContainsKey(printedId));
+        Assert.False(model.PendingPrintCounts.ContainsKey(voidedId));
+    }
+
+    [Fact]
+    public async Task AddItems_OneInvalidItem_NothingAdded()
+    {
+        var orderId = _host.SeedOrder();
+        var controller = _host.CreateController();
+
+        // 前兩項都合法，最後一項已下架：整批退回，不能只寫入一半
+        await controller.AddItems(orderId, Batch(
+            AddCommand(SimpleItemId),
+            AddCommand(CustomItemId, 1, 2, (EggAddOnId, 1)),
+            AddCommand(InactiveItemId)));
+
+        var order = _host.LoadOrder(orderId);
+        Assert.Empty(order.Items);
+        Assert.Equal(0m, order.TotalAmount);
+        Assert.NotNull(controller.TempData["Error"]);
+    }
+
+    [Fact]
+    public async Task AddItems_EmptyBatch_Rejected()
+    {
+        var orderId = _host.SeedOrder();
+        var controller = _host.CreateController();
+
+        await controller.AddItems(orderId, Batch());
+
+        Assert.Equal("請先選擇品項。", controller.TempData["Error"]);
+        Assert.Empty(_host.LoadOrder(orderId).Items);
+    }
+
+    [Fact]
+    public async Task AddItems_PendingPlusBatchOverLimit_Rejected()
+    {
+        // 已有 19 項待出單，再送 2 項即超過 20 項
+        var pending = Enumerable.Range(0, OrderLimits.MaxPendingItems - 1).Select(_ => Item()).ToArray();
+        var orderId = _host.SeedOrder(OrderStatus.Open, pending);
+        var controller = _host.CreateController();
+
+        await controller.AddItems(orderId, Batch(AddCommand(SimpleItemId), AddCommand(SimpleItemId)));
+
+        Assert.Equal(OrderLimits.MaxPendingItems - 1, _host.LoadOrder(orderId).Items.Count);
+        Assert.Contains("待出單最多 20 項", (string?)controller.TempData["Error"]);
+    }
+
+    [Fact]
+    public async Task AddItems_PrintedItemsNotCountedTowardLimit()
+    {
+        // 已出單 20 項不計入上限，可再送滿 20 項待出單
+        var printed = Enumerable.Range(0, OrderLimits.MaxPendingItems).Select(_ => Item(isPrinted: true)).ToArray();
+        var orderId = _host.SeedOrder(OrderStatus.Open, printed);
+        var batch = Enumerable.Range(0, OrderLimits.MaxPendingItems).Select(_ => AddCommand(SimpleItemId)).ToArray();
+
+        await _host.CreateController().AddItems(orderId, Batch(batch));
+
+        Assert.Equal(OrderLimits.MaxPendingItems * 2, _host.LoadOrder(orderId).Items.Count);
     }
 
     [Fact]

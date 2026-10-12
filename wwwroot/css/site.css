@@ -223,10 +223,37 @@ body {
   flex: 0 0 auto;
 }
 
-.qty-stepper input {
+.qty-stepper input,
+.qty-stepper span.form-control {
   text-align: center;
   font-size: 1.1rem;
   font-weight: 600;
+}
+
+/* 整批點餐（v14）：已放進本次點餐清單的卡片以底色標示 */
+.menu-item-card.in-cart {
+  background: var(--brand-primary-light);
+  color: inherit;
+}
+
+.cart-line {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: .5rem .75rem;
+}
+
+.cart-line-info {
+  flex: 1 1 12rem;
+  min-width: 0;
+}
+
+.cart-line .qty-stepper span.form-control {
+  width: 3.5rem;
+}
+
+.cart-line-subtotal {
+  width: 4.5rem;
 }
 
 /* Soft badge 狀態樣式 */

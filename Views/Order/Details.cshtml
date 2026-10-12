@@ -119,6 +119,7 @@
 @if (order.Status == OrderStatus.Open)
 {
     var isFirstOrder = order.Items.Count == 0;
+    var pendingCount = order.Items.Count(i => !i.IsPrinted);
     <div class="card mb-4">
         <div class="card-header">@(isFirstOrder ? "點餐" : "加點")</div>
         <div class="card-body">
@@ -150,18 +151,30 @@
                             <div class="row row-cols-2 row-cols-md-4 g-2">
                                 @foreach (var menuItem in group)
                                 {
-                                    <div class="col">
-                                        <button type="button" class="btn btn-outline-primary w-100 h-100 py-3 menu-item-card"
+                                    var isCustomized = menuItem.SupportsAddOns || menuItem.SupportsSpiceLevel;
+                                    <div class="col" data-menu-item-id="@menuItem.Id">
+                                        <button type="button" class="btn btn-outline-primary w-100 py-3 position-relative menu-item-card"
                                                 data-id="@menuItem.Id" data-name="@menuItem.Name" data-price="@menuItem.Price.ToString("F0")"
                                                 data-supports-addons="@menuItem.SupportsAddOns.ToString().ToLowerInvariant()"
                                                 data-supports-spice="@menuItem.SupportsSpiceLevel.ToString().ToLowerInvariant()">
                                             <div class="fw-bold">@menuItem.Name</div>
                                             <div class="small text-muted">$@menuItem.Price.ToString("F0")</div>
-                                            @if (menuItem.SupportsAddOns || menuItem.SupportsSpiceLevel)
+                                            @if (isCustomized)
                                             {
                                                 <div class="small text-primary">可客製化</div>
+                                                @* 客製化品項可能有多列不同設定，卡片只顯示清單中的總份數，調整在下方清單 *@
+                                                <span class="badge rounded-pill bg-danger position-absolute top-0 end-0 m-1 fs-6 menu-item-badge" hidden></span>
                                             }
                                         </button>
+                                        @if (!isCustomized)
+                                        {
+                                            @* 一般品項（v14）：點卡片 +1，份數直接在卡片上調整，即為清單中的份數 *@
+                                            <div class="qty-stepper menu-item-stepper mt-1" hidden>
+                                                <button type="button" class="btn btn-outline-secondary qty-btn cart-step" data-step="-1">−</button>
+                                                <span class="form-control text-center menu-item-qty"></span>
+                                                <button type="button" class="btn btn-outline-secondary qty-btn cart-step" data-step="1">+</button>
+                                            </div>
+                                        }
                                     </div>
                                 }
                             </div>
@@ -170,30 +183,18 @@
                     }
                 </div>
 
-                <div class="offcanvas offcanvas-bottom" tabindex="-1" id="addItemPanel" style="height: auto; max-height: 80vh;">
-                    <div class="offcanvas-header">
-                        <h5 class="offcanvas-title" id="modalItemName"></h5>
-                        <button type="button" class="btn-close" data-bs-dismiss="offcanvas"></button>
-                    </div>
-                    <div class="offcanvas-body">
-                        <form asp-action="AddItem" method="post">
-                            <input type="hidden" name="orderId" value="@order.Id" />
-                            <input type="hidden" name="MenuItemId" id="modalMenuItemId" />
-                            <div class="mb-3">
-                                <label class="form-label">數量</label>
-                                <div class="qty-stepper">
-                                    <button type="button" class="btn btn-outline-secondary qty-btn" data-step="-1">−</button>
-                                    <input type="number" name="Quantity" id="modalQuantity" value="1" min="1" max="@ManTingEats.Models.Commands.OrderLimits.MaxQuantity" step="1" required class="form-control" />
-                                    <button type="button" class="btn btn-outline-secondary qty-btn" data-step="1">+</button>
-                                </div>
-                            </div>
-                            <div class="mb-3">
-                                <label class="form-label">備註（選填，例：少辣）</label>
-                                <input type="text" name="Note" maxlength="100" class="form-control" />
-                            </div>
-                            <button type="submit" class="btn btn-primary btn-lg w-100">@(isFirstOrder ? "點餐" : "加點")</button>
-                        </form>
-                    </div>
+                @* 本次點餐清單（v14）：只存在瀏覽器，按「送出」才一次寫入；內容由下方腳本產生 *@
+                <div id="cartSection" hidden>
+                    <h6 class="fw-bold">本次點餐（尚未送出）</h6>
+                    <div id="cartList" class="list-group mb-2"></div>
+                    <div id="cartLimitWarning" class="text-danger small mb-2" hidden></div>
+                    <form asp-action="AddItems" method="post" id="cartForm"
+                          data-pending-count="@pendingCount" data-max-pending="@ManTingEats.Models.Commands.OrderLimits.MaxPendingItems"
+                          data-max-quantity="@ManTingEats.Models.Commands.OrderLimits.MaxQuantity"
+                          data-submit-label="@(Model.IsPhone ? "送出" : "送出並出單")">
+                        <input type="hidden" name="orderId" value="@order.Id" />
+                        <button type="submit" class="btn btn-primary btn-lg w-100" id="cartSubmit">送出</button>
+                    </form>
                 </div>
 
                 <div class="offcanvas offcanvas-bottom" tabindex="-1" id="customizeItemPanel" style="height: auto; max-height: 85vh;">
@@ -202,12 +203,12 @@
                         <button type="button" class="btn-close" data-bs-dismiss="offcanvas"></button>
                     </div>
                     <div class="offcanvas-body d-flex flex-column">
-                        <form asp-action="AddItem" method="post" id="customizeForm" class="d-flex flex-column flex-grow-1">
-                            <input type="hidden" name="orderId" value="@order.Id" />
-                            <input type="hidden" name="MenuItemId" id="customizeMenuItemId" />
+                        @* 只把設定加入本次點餐清單（v14），不直接送到伺服器 *@
+                        <form id="customizeForm" class="d-flex flex-column flex-grow-1">
+                            <input type="hidden" id="customizeMenuItemId" />
 
                             <div class="flex-grow-1" style="overflow-y: auto;">
-                                @* 客製化品項可點多份（v10），辣度、加料、備註套用到每一份；設定不同請分開加點 *@
+                                @* 客製化品項可點多份（v10），辣度、加料、備註套用到每一份；設定不同時分成清單中的不同列 *@
                                 <div class="mb-3">
                                     <label class="form-label">份數</label>
                                     <div class="qty-stepper">
@@ -266,22 +267,28 @@
                                     <div class="text-muted small">小計</div>
                                     <div class="fs-4 fw-bold text-brand">$<span id="customizeSubtotal">0</span></div>
                                 </div>
-                                <button type="submit" class="btn btn-primary btn-lg flex-grow-1">加點</button>
+                                <button type="submit" class="btn btn-primary btn-lg flex-grow-1">加入清單</button>
                             </div>
                         </form>
                     </div>
                 </div>
             }
             @{
-                var pendingCount = order.Items.Count(i => !i.IsPrinted);
                 var hasPrintedItems = order.Items.Any(i => i.IsPrinted);
             }
             @if (pendingCount > 0 || !hasPrintedItems)
             {
                 <div class="mt-3">
-                    @if (pendingCount > 0)
+                    @if (pendingCount > 0 && Model.IsPhone)
                     {
-                        <form asp-action="ConfirmPrint" method="post" class="d-inline">
+                        @* 手機不接印表機（v14），不顯示「確認訂單」以免出單失敗，改提示到 iPad 出單 *@
+                        <div class="alert alert-warning py-2 mb-2">尚有 @pendingCount 項待出單，請到 iPad 按「確認訂單」出單。</div>
+                    }
+                    else if (pendingCount > 0)
+                    {
+                        @* 送出即出單（v14）後，此按鈕用於出單失敗（印表機未連線、缺紙等）時重新出單，或手機點餐後在 iPad 出單 *@
+                        <form asp-action="ConfirmPrint" method="post" class="d-inline" id="confirmPrintForm"
+                              data-auto-print="@((TempData["AutoPrint"] is true).ToString().ToLowerInvariant())">
                             <input type="hidden" name="orderId" value="@order.Id" />
                             <button type="submit" class="btn btn-primary">確認訂單（@pendingCount 項）</button>
                         </form>
@@ -626,6 +633,139 @@
             update();
         })();
 
+        // ── 整批點餐（v14）：品項先放進「本次點餐」清單，按「送出」才一次寫入 ──
+        // 清單只存在這個頁面；點選過程不重新載入，分類分頁與捲動位置都不會跳回
+        var cartForm = document.getElementById('cartForm');
+        var cart = [];              // 每列：{ menuItemId, name, price, customized, quantity, note, spiceLevel, addOns: [{ id, name, price, qty }] }
+        var cartSubmitting = false; // 送出時不再跳「尚未送出」提醒
+
+        function lineSubtotal(line) {
+            // 與後端 OrderItem.Subtotal 相同：（品項單價 + 每份加料金額）x 份數
+            var perServing = line.price;
+            line.addOns.forEach(function (a) { perServing += a.price * a.qty; });
+            return perServing * line.quantity;
+        }
+
+        function simpleLine(menuItemId) {
+            return cart.find(function (l) { return !l.customized && l.menuItemId === menuItemId; });
+        }
+
+        function changeQuantity(line, step) {
+            var max = parseInt(cartForm.dataset.maxQuantity, 10);
+            line.quantity = Math.min(max, line.quantity + step);
+            if (line.quantity <= 0) {
+                cart.splice(cart.indexOf(line), 1);
+            }
+            renderCart();
+        }
+
+        function createStepButton(text, onClick) {
+            var btn = document.createElement('button');
+            btn.type = 'button';
+            btn.className = 'btn btn-outline-secondary qty-btn';
+            btn.textContent = text;
+            btn.addEventListener('click', onClick);
+            return btn;
+        }
+
+        function renderCart() {
+            var list = document.getElementById('cartList');
+            list.replaceChildren();
+            // 品名、加料名稱、備註一律以 textContent 寫入，不會被當成 HTML 解析
+            cart.forEach(function (line) {
+                var row = document.createElement('div');
+                row.className = 'list-group-item cart-line';
+
+                var info = document.createElement('div');
+                info.className = 'cart-line-info';
+                var name = document.createElement('div');
+                name.className = 'fw-bold';
+                name.textContent = line.name;
+                info.appendChild(name);
+                if (line.spiceLevel !== null) {
+                    var spice = document.createElement('div');
+                    spice.className = 'text-muted small';
+                    spice.textContent = '辣度：' + line.spiceLevel;
+                    info.appendChild(spice);
+                }
+                if (line.addOns.length > 0) {
+                    var addOns = document.createElement('div');
+                    addOns.className = 'text-muted small';
+                    addOns.textContent = (line.quantity > 1 ? '加料（每份）：' : '加料：')
+                        + line.addOns.map(function (a) { return a.name + ' x' + a.qty; }).join('、');
+                    info.appendChild(addOns);
+                }
+                var note = document.createElement('input');
+                note.type = 'text';
+                note.maxLength = 100;
+                note.placeholder = '備註（選填）';
+                note.className = 'form-control form-control-sm mt-1';
+                note.value = line.note;
+                note.addEventListener('input', function () { line.note = note.value; });
+                info.appendChild(note);
+
+                var stepper = document.createElement('div');
+                stepper.className = 'qty-stepper';
+                var qty = document.createElement('span');
+                qty.className = 'form-control text-center';
+                qty.textContent = line.quantity;
+                stepper.append(
+                    createStepButton('−', function () { changeQuantity(line, -1); }),
+                    qty,
+                    createStepButton('+', function () { changeQuantity(line, 1); }));
+
+                var subtotal = document.createElement('div');
+                subtotal.className = 'fw-bold text-end cart-line-subtotal';
+                subtotal.textContent = '$' + lineSubtotal(line).toFixed(0);
+
+                var remove = document.createElement('button');
+                remove.type = 'button';
+                remove.className = 'btn btn-outline-danger';
+                remove.setAttribute('aria-label', '從清單移除');
+                remove.textContent = '✕';
+                remove.addEventListener('click', function () {
+                    cart.splice(cart.indexOf(line), 1);
+                    renderCart();
+                });
+
+                row.append(info, stepper, subtotal, remove);
+                list.appendChild(row);
+            });
+
+            // 卡片上的份數：一般品項顯示在卡片下方的 −／+，客製化品項以角標顯示總份數
+            document.querySelectorAll('[data-menu-item-id]').forEach(function (col) {
+                var id = parseInt(col.dataset.menuItemId, 10);
+                var total = cart.filter(function (l) { return l.menuItemId === id; })
+                    .reduce(function (sum, l) { return sum + l.quantity; }, 0);
+                var stepper = col.querySelector('.menu-item-stepper');
+                if (stepper) {
+                    stepper.hidden = total === 0;
+                    stepper.querySelector('.menu-item-qty').textContent = total;
+                }
+                var badge = col.querySelector('.menu-item-badge');
+                if (badge) {
+                    badge.hidden = total === 0;
+                    badge.textContent = total;
+                }
+                col.querySelector('.menu-item-card').classList.toggle('in-cart', total > 0);
+            });
+
+            // 待出單上限（v14）：已在資料庫待出單的 + 本次清單的列數；後端 AddItems 也會再檢查
+            var pending = parseInt(cartForm.dataset.pendingCount, 10);
+            var maxPending = parseInt(cartForm.dataset.maxPending, 10);
+            var overLimit = pending + cart.length > maxPending;
+            var warning = document.getElementById('cartLimitWarning');
+            warning.hidden = !overLimit;
+            warning.textContent = '待出單最多 ' + maxPending + ' 項（目前 ' + pending + ' 項，本次 ' + cart.length
+                + ' 項），請減少品項分批送出；若有待出單品項，請先在 iPad 出單。';
+
+            var total = cart.reduce(function (sum, l) { return sum + lineSubtotal(l); }, 0);
+            var submit = document.getElementById('cartSubmit');
+            submit.disabled = overLimit;
+            submit.textContent = cartForm.dataset.submitLabel + ' ' + cart.length + ' 項（$' + total.toFixed(0) + '）';
+            document.getElementById('cartSection').hidden = cart.length === 0;
+        }
+
         document.querySelectorAll('.menu-item-card').forEach(function (btn) {
             btn.addEventListener('click', function () {
                 var isCustomized = this.dataset.supportsAddons === 'true' || this.dataset.supportsSpice === 'true';
@@ -645,26 +785,45 @@
                     var firstSpice = form.querySelector('input[name="SpiceLevel"][value="@ManTingEats.Models.Commands.OrderLimits.DefaultSpiceLevel"]');
                     if (firstSpice) { firstSpice.checked = true; }
                     document.getElementById('customizeQuantity').value = 1;
+                    form.elements['Note'].value = '';
 
                     updateCustomizeSubtotal(parseFloat(this.dataset.price));
-                    new bootstrap.Offcanvas(document.getElementById('customizeItemPanel')).show();
+                    bootstrap.Offcanvas.getOrCreateInstance(document.getElementById('customizeItemPanel')).show();
                 } else {
-                    document.getElementById('modalMenuItemId').value = this.dataset.id;
-                    document.getElementById('modalItemName').textContent = this.dataset.name + '（$' + this.dataset.price + '）';
-                    document.getElementById('modalQuantity').value = 1;
-                    new bootstrap.Offcanvas(document.getElementById('addItemPanel')).show();
+                    // 一般品項：點一下 = 清單中該品項 +1，不跳面板
+                    var id = parseInt(this.dataset.id, 10);
+                    var line = simpleLine(id);
+                    if (line) {
+                        changeQuantity(line, 1);
+                    } else {
+                        cart.push({
+                            menuItemId: id, name: this.dataset.name, price: parseFloat(this.dataset.price),
+                            customized: false, quantity: 1, note: '', spiceLevel: null, addOns: []
+                        });
+                        renderCart();
+                    }
                 }
             });
         });
 
-        document.querySelectorAll('.qty-btn').forEach(function (btn) {
+        // 一般品項卡片下方的 −／+
+        document.querySelectorAll('.menu-item-stepper .cart-step').forEach(function (btn) {
+            btn.addEventListener('click', function () {
+                var id = parseInt(this.closest('[data-menu-item-id]').dataset.menuItemId, 10);
+                var line = simpleLine(id);
+                if (line) {
+                    changeQuantity(line, parseInt(this.dataset.step, 10));
+                }
+            });
+        });
+
+        // 客製化面板內的份數與加料數量 −／+（卡片與清單的 −／+ 另有處理）
+        document.querySelectorAll('#customizeItemPanel .qty-btn').forEach(function (btn) {
             btn.addEventListener('click', function () {
                 var input = this.parentElement.querySelector('input[type="number"]');
                 var next = parseInt(input.value || '1', 10) + parseInt(this.dataset.step, 10);
                 input.value = Math.min(parseInt(input.max, 10) || 99, Math.max(1, next));
-                if (input.classList.contains('addon-qty-input') || input.id === 'customizeQuantity') {
-                    updateCustomizeSubtotalFromForm();
-                }
+                updateCustomizeSubtotalFromForm();
             });
         });
 
@@ -715,25 +874,105 @@
             document.getElementById('customizeSubtotal').textContent = (perServing * servings).toFixed(0);
         }
 
+        // 客製化面板「加入清單」：設定（辣度、加料、備註）完全相同的合併份數，否則另起一列
         // 客製化表單僅在訂單未結帳且有上架品項時才會輸出，需先判斷避免 null 錯誤中斷後續腳本
         var customizeForm = document.getElementById('customizeForm');
         if (customizeForm) customizeForm.addEventListener('submit', function (event) {
+            event.preventDefault();
             var form = event.target;
-            form.querySelectorAll('input[data-generated-addon]').forEach(function (el) { el.remove(); });
-
-            var index = 0;
-            form.querySelectorAll('.addon-checkbox:checked').forEach(function (cb) {
-                var qty = cb.closest('.addon-row').querySelector('.addon-qty-input').value || 1;
-                [['AddOnId', cb.dataset.addonId], ['Quantity', qty]].forEach(function (pair) {
-                    var hidden = document.createElement('input');
-                    hidden.type = 'hidden';
-                    hidden.name = 'AddOns[' + index + '].' + pair[0];
-                    hidden.value = pair[1];
-                    hidden.setAttribute('data-generated-addon', 'true');
-                    form.appendChild(hidden);
+            var card = document.querySelector('.menu-item-card[data-id="' + document.getElementById('customizeMenuItemId').value + '"]');
+            var spiceInput = form.querySelector('input[name="SpiceLevel"]:checked');
+            var addOns = [];
+            if (card.dataset.supportsAddons === 'true') {
+                form.querySelectorAll('.addon-checkbox:checked').forEach(function (cb) {
+                    addOns.push({
+                        id: parseInt(cb.dataset.addonId, 10), name: cb.dataset.addonName, price: parseFloat(cb.dataset.addonPrice),
+                        qty: parseInt(cb.closest('.addon-row').querySelector('.addon-qty-input').value || '1', 10)
+                    });
                 });
-                index++;
+            }
+            var line = {
+                menuItemId: parseInt(card.dataset.id, 10), name: card.dataset.name, price: parseFloat(card.dataset.price),
+                customized: true,
+                quantity: parseInt(document.getElementById('customizeQuantity').value || '1', 10),
+                note: form.elements['Note'].value.trim(),
+                spiceLevel: card.dataset.supportsSpice === 'true' && spiceInput ? parseInt(spiceInput.value, 10) : null,
+                addOns: addOns
+            };
+            var settings = function (l) { return JSON.stringify([l.menuItemId, l.note, l.spiceLevel, l.addOns.map(function (a) { return [a.id, a.qty]; })]); };
+            var same = cart.find(function (l) { return l.customized && settings(l) === settings(line); });
+            if (same) {
+                changeQuantity(same, line.quantity);
+            } else {
+                cart.push(line);
+                renderCart();
+            }
+            bootstrap.Offcanvas.getOrCreateInstance(document.getElementById('customizeItemPanel')).hide();
+        });
+
+        // 送出：把清單轉成 Items[i].xxx 欄位，由後端 AddItems 一次寫入
+        if (cartForm) cartForm.addEventListener('submit', function (event) {
+            if (cart.length === 0 || document.getElementById('cartSubmit').disabled) {
+                event.preventDefault();
+                return;
+            }
+            cartForm.querySelectorAll('input[data-generated-item]').forEach(function (el) { el.remove(); });
+            function addField(name, value) {
+                var hidden = document.createElement('input');
+                hidden.type = 'hidden';
+                hidden.name = name;
+                hidden.value = value;
+                hidden.setAttribute('data-generated-item', 'true');
+                cartForm.appendChild(hidden);
+            }
+            cart.forEach(function (line, i) {
+                var prefix = 'Items[' + i + '].';
+                addField(prefix + 'MenuItemId', line.menuItemId);
+                addField(prefix + 'Quantity', line.quantity);
+                addField(prefix + 'Note', line.note.trim());
+                if (line.spiceLevel !== null) {
+                    addField(prefix + 'SpiceLevel', line.spiceLevel);
+                }
+                line.addOns.forEach(function (a, j) {
+                    addField(prefix + 'AddOns[' + j + '].AddOnId', a.id);
+                    addField(prefix + 'AddOns[' + j + '].Quantity', a.qty);
+                });
             });
+            cartSubmitting = true;
+        });
+
+        // 送出即出單（v14）：AddItems 成功後導回本頁並帶自動出單標記，直接送出「確認訂單」開啟 PassPRNT
+        // 標記存在 TempData、讀一次即消失，重新整理不會再出一次；手機不會輸出此表單
+        var confirmPrintForm = document.getElementById('confirmPrintForm');
+        if (confirmPrintForm && confirmPrintForm.dataset.autoPrint === 'true') {
+            var confirmPrintButton = confirmPrintForm.querySelector('button[type="submit"]');
+            confirmPrintButton.disabled = true;
+            confirmPrintButton.textContent = '出單中...';
+            confirmPrintForm.submit();
+        }
+
+        // 清單有內容時離開頁面的提醒：
+        // 站內連結與其他表單（確認訂單、移除品項等）用 confirm 詢問，iPad Safari 也有效；
+        // 重新整理、關閉分頁則靠 beforeunload（iPad Safari 不一定會跳出，屬瀏覽器限制）
+        var leaveMessage = '本次點餐清單尚未送出，離開後清單會消失。確定要離開？';
+        document.addEventListener('click', function (event) {
+            var link = event.target.closest('a[href]');
+            if (link && cart.length > 0 && !link.getAttribute('href').startsWith('#') && !confirm(leaveMessage)) {
+                event.preventDefault();
+            }
+        }, true);
+        // 捕獲階段先執行，取消時其他表單的 onsubmit 與下方的防連點都不會觸發
+        document.addEventListener('submit', function (event) {
+            if (event.target !== cartForm && event.target !== customizeForm && cart.length > 0 && !confirm(leaveMessage)) {
+                event.preventDefault();
+                event.stopImmediatePropagation();
+            }
+        }, true);
+        window.addEventListener('beforeunload', function (event) {
+            if (cart.length > 0 && !cartSubmitting) {
+                event.preventDefault();
+                event.returnValue = '';
+            }
         });
 
         // 防止網路較慢時使用者重複點擊送出，造成同一動作被送出兩次（例如重複加點）

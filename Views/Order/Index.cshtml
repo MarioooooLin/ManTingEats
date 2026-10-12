@@ -90,7 +90,14 @@ else
                         <td>#@order.DailyNumber</td>
                         <td><span class="badge @channelBadgeClass">@order.Channel.ToDisplayText()</span></td>
                         <td>@(order.TableNumber ?? "-")</td>
-                        <td><span class="badge @badgeClass">@order.Status.ToDisplayText()</span></td>
+                        <td>
+                            <span class="badge @badgeClass">@order.Status.ToDisplayText()</span>
+                            @* 手機點餐不出單（v14），標示讓 iPad 知道哪張單要按「確認訂單」 *@
+                            @if (Model.PendingPrintCounts.TryGetValue(order.Id, out var pendingPrintCount))
+                            {
+                                <span class="badge bg-danger">待出單 @pendingPrintCount 項</span>
+                            }
+                        </td>
                         <td class="text-end">
                             $@order.AmountDue.ToString("F0")
                             @if (order.DiscountAmount > 0)

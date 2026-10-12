@@ -25,6 +25,9 @@ public sealed class OrderController : Controller
 
     private int CurrentEmployeeId => int.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier)!);
 
+    /// <summary>手機不接印表機（v14）：送出後不自動出單、不顯示「確認訂單」，改提示到 iPad 出單。</summary>
+    private bool IsPhoneRequest => PrintDevice.IsPhone(Request.Headers.UserAgent);
+
     /// <summary>訂單列表每頁筆數（v11）：預設畫面只看今天最新幾張，查詢結果也以同樣筆數分頁。</summary>
     public const int OrderListSize = 10;
 
@@ -48,10 +51,12 @@ public sealed class OrderController : Controller
             // 列表只有今天最新 10 筆，較早或前一營業日的未結帳單可能不在畫面上，提示總張數避免漏結帳；要處理時再用狀態查詢
             var openCount = await _db.Orders.CountAsync(o => o.Status == OrderStatus.Open);
 
+            var todayResults = await PagedList<Order>.CreateAsync(todayOrders, 1, OrderListSize);
             return View(new OrderSearchViewModel
             {
-                Results = await PagedList<Order>.CreateAsync(todayOrders, 1, OrderListSize),
-                OpenCount = openCount
+                Results = todayResults,
+                OpenCount = openCount,
+                PendingPrintCounts = await PendingPrintCountsAsync(todayResults.Items)
             });
         }
 
@@ -79,14 +84,30 @@ public sealed class OrderController : Controller
             .OrderByDescending(o => o.CreatedAt)
             .ThenByDescending(o => o.Id);
 
+        var results = await PagedList<Order>.CreateAsync(ordered, page, OrderListSize);
         return View(new OrderSearchViewModel
         {
             IsSearch = true,
             Start = start,
             End = end,
             Status = status,
-            Results = await PagedList<Order>.CreateAsync(ordered, page, OrderListSize)
+            Results = results,
+            PendingPrintCounts = await PendingPrintCountsAsync(results.Items)
         });
+    }
+
+    /// <summary>
+    /// 列表上未結帳訂單的待出單品項數（v14）：手機點餐不出單，讓 iPad 從列表一眼看出哪張單要出單。
+    /// 只查畫面上這一頁的訂單；沒有待出單的不會出現在結果中。
+    /// </summary>
+    private async Task<Dictionary<int, int>> PendingPrintCountsAsync(IEnumerable<Order> orders)
+    {
+        var openIds = orders.Where(o => o.Status == OrderStatus.Open).Select(o => o.Id).ToList();
+        return await _db.OrderItems
+            .Where(i => openIds.Contains(i.OrderId) && !i.IsPrinted)
+            .GroupBy(i => i.OrderId)
+            .Select(g => new { OrderId = g.Key, Count = g.Count() })
+            .ToDictionaryAsync(x => x.OrderId, x => x.Count);
     }
 
     [HttpGet]
@@ -179,16 +200,26 @@ public sealed class OrderController : Controller
             .OrderBy(a => a.Name)
             .ToListAsync();
 
-        return View(new OrderDetailsViewModel { Order = order, ActiveMenuItems = activeMenuItems, ActiveAddOns = activeAddOns });
+        return View(new OrderDetailsViewModel
+        {
+            Order = order,
+            ActiveMenuItems = activeMenuItems,
+            ActiveAddOns = activeAddOns,
+            IsPhone = IsPhoneRequest
+        });
     }
 
     /// <summary>包含加料金額的訂單總額重算，項目集合需已 Include AddOns。</summary>
     private static decimal ComputeTotal(Order order) =>
         order.Items.Sum(i => i.Subtotal);
 
+    /// <summary>
+    /// 整批點餐（v14）：畫面上的「本次點餐」清單一次送出。任一品項不合法即整批退回，
+    /// 全部建好後才一次 SaveChanges，因此不會只寫入一半。
+    /// </summary>
     [HttpPost]
     [ValidateAntiForgeryToken]
-    public async Task<IActionResult> AddItem(int orderId, AddOrderItemCommand command)
+    public async Task<IActionResult> AddItems(int orderId, AddOrderItemsCommand command)
     {
         var order = await _db.Orders
             .Include(o => o.Items)
@@ -201,7 +232,7 @@ public sealed class OrderController : Controller
 
         if (!ModelState.IsValid)
         {
-            TempData["Error"] = string.Join("；", ModelState.Values.SelectMany(v => v.Errors).Select(e => e.ErrorMessage));
+            TempData["Error"] = string.Join("；", ModelState.Values.SelectMany(v => v.Errors).Select(e => e.ErrorMessage).Distinct());
             return RedirectToAction(nameof(Details), new { id = orderId });
         }
 
@@ -211,11 +242,59 @@ public sealed class OrderController : Controller
             return RedirectToAction(nameof(Details), new { id = orderId });
         }
 
+        if (command.Items is not { Count: > 0 })
+        {
+            TempData["Error"] = "請先選擇品項。";
+            return RedirectToAction(nameof(Details), new { id = orderId });
+        }
+
+        // 畫面也會擋，但清單在瀏覽器中可能已過時（例如另一台裝置剛加點），後端以資料庫為準再檢查一次
+        var pendingCount = order.Items.Count(i => !i.IsPrinted);
+        if (pendingCount + command.Items.Count > OrderLimits.MaxPendingItems)
+        {
+            TempData["Error"] = $"待出單最多 {OrderLimits.MaxPendingItems} 項（目前 {pendingCount} 項，本次 {command.Items.Count} 項），請分批送出；若有待出單品項，請先在 iPad 出單。";
+            return RedirectToAction(nameof(Details), new { id = orderId });
+        }
+
+        var newItems = new List<OrderItem>();
+        foreach (var itemCommand in command.Items)
+        {
+            var (newItem, error) = await BuildOrderItemAsync(itemCommand);
+            if (newItem is null)
+            {
+                TempData["Error"] = error;
+                return RedirectToAction(nameof(Details), new { id = orderId });
+            }
+            newItems.Add(newItem);
+        }
+
+        newItems.ForEach(order.Items.Add);
+        // 每次加點都重新加總，確保金額與品項清單一致（含加料）
+        order.TotalAmount = ComputeTotal(order);
+        await _db.SaveChangesAsync();
+        var summary = $"已送出 {newItems.Count} 項，共 {newItems.Sum(i => i.Quantity)} 份";
+        if (IsPhoneRequest)
+        {
+            TempData["Success"] = $"{summary}，請到 iPad 按「確認訂單」出單。";
+        }
+        else
+        {
+            // 送出即出單（v14）：導回訂單頁後由頁面自動送出「確認訂單」，沿用原本的出單與回寫流程；
+            // 不直接在此回傳出單頁，避免在出單頁重新整理時瀏覽器重送本表單而重複點餐
+            TempData["Success"] = $"{summary}。";
+            TempData["AutoPrint"] = true;
+        }
+
+        return RedirectToAction(nameof(Details), new { id = orderId });
+    }
+
+    /// <summary>依點餐內容建立一筆品項（含加料），只建物件不存檔；品項下架或加料停用時回傳錯誤訊息。</summary>
+    private async Task<(OrderItem? Item, string? Error)> BuildOrderItemAsync(AddOrderItemCommand command)
+    {
         var menuItem = await _db.MenuItems.SingleOrDefaultAsync(m => m.Id == command.MenuItemId && m.IsActive);
         if (menuItem is null)
         {
-            TempData["Error"] = "品項不存在或已下架。";
-            return RedirectToAction(nameof(Details), new { id = orderId });
+            return (null, "品項不存在或已下架，請重新選擇。");
         }
 
         // 客製化品項也可點多份（v10）：辣度、加料、備註套用到每一份，加料數量為每份的量
@@ -234,8 +313,7 @@ public sealed class OrderController : Controller
             var activeAddOns = await _db.AddOns.Where(a => addOnIds.Contains(a.Id) && a.IsActive).ToListAsync();
             if (activeAddOns.Count != addOnIds.Count)
             {
-                TempData["Error"] = "部分加料已下架，請重新選擇。";
-                return RedirectToAction(nameof(Details), new { id = orderId });
+                return (null, $"{menuItem.Name} 的部分加料已下架，請重新選擇。");
             }
 
             foreach (var selection in command.AddOns)
@@ -251,13 +329,7 @@ public sealed class OrderController : Controller
             }
         }
 
-        order.Items.Add(newItem);
-        // 每次加點皮重新加總，確保金額與品項清單一致（含加料）
-        order.TotalAmount = ComputeTotal(order);
-        await _db.SaveChangesAsync();
-        TempData["Success"] = $"已加點 {menuItem.Name} x{newItem.Quantity}。";
-
-        return RedirectToAction(nameof(Details), new { id = orderId });
+        return (newItem, null);
     }
 
     [HttpPost]

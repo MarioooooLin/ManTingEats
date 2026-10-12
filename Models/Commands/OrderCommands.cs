@@ -15,6 +15,12 @@ public static class OrderLimits
     public const int MinSpiceLevel = 0;
     public const int MaxSpiceLevel = 6;
     public const int DefaultSpiceLevel = 1;
+
+    /// <summary>
+    /// 待出單品項上限（v14，2026-10-13 使用者決議）：出單內容放在網址交給 PassPRNT，過長可能列印失敗。
+    /// 以「列」計（滷肉飯 x5 算 1 項），已出單的不計；確切上限未實測，實測後可調整此值。
+    /// </summary>
+    public const int MaxPendingItems = 20;
 }
 
 public sealed record CreateOrderCommand(
@@ -31,6 +37,10 @@ public sealed record AddOrderItemCommand(
     [StringLength(100, ErrorMessage = "備註不得超過 100 字")] string? Note = null,
     [Range(OrderLimits.MinSpiceLevel, OrderLimits.MaxSpiceLevel, ErrorMessage = "辣度需介於 0 到 6")] int? SpiceLevel = null,
     List<AddOnSelectionCommand>? AddOns = null);
+
+/// <summary>整批點餐（v14）：畫面上的「本次點餐」清單一次送出，全部成功或全部不寫入。</summary>
+public sealed record AddOrderItemsCommand(
+    [Required(ErrorMessage = "請先選擇品項")][MinLength(1, ErrorMessage = "請先選擇品項")] List<AddOrderItemCommand> Items);
 
 public sealed record VoidOrderCommand(
     [Required(ErrorMessage = "請輸入作廢原因")][StringLength(200, ErrorMessage = "原因不得超過 200 字")] string Reason);

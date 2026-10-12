@@ -17,4 +17,7 @@ public sealed class OrderSearchViewModel
 
     /// <summary>所有尚未結帳的訂單張數（含今天與以前營業日），只在預設畫面提示。</summary>
     public int OpenCount { get; init; }
+
+    /// <summary>未結帳訂單的待出單品項數（訂單 ID → 項數），沒有待出單的不在其中（v14）。</summary>
+    public IReadOnlyDictionary<int, int> PendingPrintCounts { get; init; } = new Dictionary<int, int>();
 }
