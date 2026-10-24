@@ -33,7 +33,7 @@ public class AmountValidationTests
     [InlineData("100000")]
     public void MenuItemPrice_WholeAmountWithinRange_IsValid(string price)
     {
-        var command = new CreateMenuItemCommand("牛肉麵", MenuCategory.Food, decimal.Parse(price));
+        var command = new CreateMenuItemCommand("牛肉麵", 1, decimal.Parse(price));
 
         Assert.Empty(Validate(command));
     }
@@ -44,7 +44,7 @@ public class AmountValidationTests
     [InlineData("100001")]
     public void MenuItemPrice_FractionalOrOutOfRange_IsInvalid(string price)
     {
-        var command = new CreateMenuItemCommand("牛肉麵", MenuCategory.Food, decimal.Parse(price));
+        var command = new CreateMenuItemCommand("牛肉麵", 1, decimal.Parse(price));
 
         Assert.NotEmpty(Validate(command));
     }

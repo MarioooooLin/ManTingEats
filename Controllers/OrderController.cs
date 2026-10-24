@@ -191,9 +191,11 @@ public sealed class OrderController : Controller
             return NotFound();
         }
 
+        // 分類分頁依店長設定的順序（v17）；上架品項的分類必為啟用，仍一併過濾以防萬一
         var activeMenuItems = await _db.MenuItems
-            .Where(m => m.IsActive)
-            .OrderBy(m => m.Category).ThenBy(m => m.Name)
+            .Include(m => m.Category)
+            .Where(m => m.IsActive && m.Category.IsActive)
+            .OrderBy(m => m.Category.SortOrder).ThenBy(m => m.CategoryId).ThenBy(m => m.Name)
             .ToListAsync();
         var activeAddOns = await _db.AddOns
             .Where(a => a.IsActive)

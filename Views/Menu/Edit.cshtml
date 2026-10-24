@@ -2,8 +2,7 @@
 @using Microsoft.AspNetCore.Mvc.Rendering
 @{
     ViewData["Title"] = "編輯菜單品項";
-    var categoryOptions = Enum.GetValues<MenuCategory>()
-        .Select(c => new SelectListItem(c.ToDisplayText(), c.ToString()));
+    var categoryOptions = (List<SelectListItem>)ViewData["CategoryOptions"]!;
 }
 
 <div class="page-header">
@@ -23,9 +22,9 @@
                         <span asp-validation-for="Name" class="text-danger"></span>
                     </div>
                     <div class="mb-3">
-                        <label asp-for="Category" class="form-label"></label>
-                        <select asp-for="Category" asp-items="categoryOptions" class="form-select"></select>
-                        <span asp-validation-for="Category" class="text-danger"></span>
+                        <label asp-for="CategoryId" class="form-label"></label>
+                        <select asp-for="CategoryId" asp-items="categoryOptions" class="form-select"></select>
+                        <span asp-validation-for="CategoryId" class="text-danger"></span>
                     </div>
                     <div class="mb-3">
                         <label asp-for="Price" class="form-label"></label>

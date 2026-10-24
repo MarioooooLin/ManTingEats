@@ -129,14 +129,15 @@
             }
             else
             {
-                var categories = Model.ActiveMenuItems.GroupBy(m => m.Category).OrderBy(g => g.Key);
+                @* 依查詢的排序分組（分類的排序值），GroupBy 保留第一次出現的順序 *@
+                var categories = Model.ActiveMenuItems.GroupBy(m => m.CategoryId).ToList();
                 <ul class="nav nav-pills mb-3">
                     @{ var isFirstCategory = true; }
                     @foreach (var group in categories)
                     {
                         <li class="nav-item">
                             <button class="nav-link @(isFirstCategory ? "active" : "")" data-bs-toggle="pill" data-bs-target="#cat-@group.Key" type="button">
-                                @group.Key.ToDisplayText()
+                                @group.First().Category.Name
                             </button>
                         </li>
                         isFirstCategory = false;

@@ -16,17 +16,30 @@
 /*!40111 SET @OLD_SQL_NOTES=@@SQL_NOTES, SQL_NOTES=0 */;
 
 --
+-- Dumping data for table `MenuCategories`
+-- （v17 起分類為資料表；這三筆由 Migration 建立，此處 INSERT IGNORE 只是讓檔案自成完整）
+--
+
+LOCK TABLES `MenuCategories` WRITE;
+/*!40000 ALTER TABLE `MenuCategories` DISABLE KEYS */;
+INSERT  IGNORE INTO `MenuCategories` (`Id`, `Name`, `SortOrder`, `IsActive`) VALUES (1,'吃',0,1);
+INSERT  IGNORE INTO `MenuCategories` (`Id`, `Name`, `SortOrder`, `IsActive`) VALUES (2,'喝',1,1);
+INSERT  IGNORE INTO `MenuCategories` (`Id`, `Name`, `SortOrder`, `IsActive`) VALUES (3,'其他',2,1);
+/*!40000 ALTER TABLE `MenuCategories` ENABLE KEYS */;
+UNLOCK TABLES;
+
+--
 -- Dumping data for table `MenuItems`
 --
 
 LOCK TABLES `MenuItems` WRITE;
 /*!40000 ALTER TABLE `MenuItems` DISABLE KEYS */;
-INSERT  IGNORE INTO `MenuItems` (`Id`, `Name`, `Category`, `Price`, `IsActive`, `SupportsAddOns`, `SupportsSpiceLevel`) VALUES (1,'菜1',0,300.00,1,0,1);
-INSERT  IGNORE INTO `MenuItems` (`Id`, `Name`, `Category`, `Price`, `IsActive`, `SupportsAddOns`, `SupportsSpiceLevel`) VALUES (2,'喝1',1,1000.00,1,0,0);
-INSERT  IGNORE INTO `MenuItems` (`Id`, `Name`, `Category`, `Price`, `IsActive`, `SupportsAddOns`, `SupportsSpiceLevel`) VALUES (3,'菜2',0,90.00,1,1,1);
-INSERT  IGNORE INTO `MenuItems` (`Id`, `Name`, `Category`, `Price`, `IsActive`, `SupportsAddOns`, `SupportsSpiceLevel`) VALUES (4,'喝2',1,20.00,1,0,0);
-INSERT  IGNORE INTO `MenuItems` (`Id`, `Name`, `Category`, `Price`, `IsActive`, `SupportsAddOns`, `SupportsSpiceLevel`) VALUES (5,'油漆',2,999.00,1,0,0);
-INSERT  IGNORE INTO `MenuItems` (`Id`, `Name`, `Category`, `Price`, `IsActive`, `SupportsAddOns`, `SupportsSpiceLevel`) VALUES (6,'鍋子',2,666.00,0,0,0);
+INSERT  IGNORE INTO `MenuItems` (`Id`, `Name`, `CategoryId`, `Price`, `IsActive`, `SupportsAddOns`, `SupportsSpiceLevel`) VALUES (1,'菜1',1,300.00,1,0,1);
+INSERT  IGNORE INTO `MenuItems` (`Id`, `Name`, `CategoryId`, `Price`, `IsActive`, `SupportsAddOns`, `SupportsSpiceLevel`) VALUES (2,'喝1',2,1000.00,1,0,0);
+INSERT  IGNORE INTO `MenuItems` (`Id`, `Name`, `CategoryId`, `Price`, `IsActive`, `SupportsAddOns`, `SupportsSpiceLevel`) VALUES (3,'菜2',1,90.00,1,1,1);
+INSERT  IGNORE INTO `MenuItems` (`Id`, `Name`, `CategoryId`, `Price`, `IsActive`, `SupportsAddOns`, `SupportsSpiceLevel`) VALUES (4,'喝2',2,20.00,1,0,0);
+INSERT  IGNORE INTO `MenuItems` (`Id`, `Name`, `CategoryId`, `Price`, `IsActive`, `SupportsAddOns`, `SupportsSpiceLevel`) VALUES (5,'油漆',3,999.00,1,0,0);
+INSERT  IGNORE INTO `MenuItems` (`Id`, `Name`, `CategoryId`, `Price`, `IsActive`, `SupportsAddOns`, `SupportsSpiceLevel`) VALUES (6,'鍋子',3,666.00,0,0,0);
 /*!40000 ALTER TABLE `MenuItems` ENABLE KEYS */;
 UNLOCK TABLES;
 

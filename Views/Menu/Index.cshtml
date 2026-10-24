@@ -1,13 +1,195 @@
 @model ManTingEats.Models.MenuIndexViewModel
+@using ManTingEats.Models.Entities
 @{
     ViewData["Title"] = "菜單管理";
+
+    // 下架／停用的收在各分頁最下方的收合區塊（v17），列表只看到在用的；資料不刪除，展開即可編輯、重新上架
+    var activeItems = Model.Items.Where(i => i.IsActive).ToList();
+    var inactiveItems = Model.Items.Where(i => !i.IsActive).ToList();
+    var activeAddOns = Model.AddOns.Where(a => a.IsActive).ToList();
+    var inactiveAddOns = Model.AddOns.Where(a => !a.IsActive).ToList();
+    var activeCategories = Model.Categories.Where(c => c.Category.IsActive).ToList();
+    var inactiveCategories = Model.Categories.Where(c => !c.Category.IsActive).ToList();
 }
 
-@* 新增按鈕與其他列表頁一樣放在標題列右側，依目前分頁切換為「新增品項」或「新增加料」 *@
+@{
+    // 上架區與收合區共用同一份表格／卡片，欄位與按鈕不會不一致
+    async Task ItemTable(List<MenuItem> items)
+    {
+        <div class="card">
+            <div class="table-responsive">
+            <table class="table table-hover mb-0">
+                <thead>
+                    <tr>
+                        <th>分類</th>
+                        <th>名稱</th>
+                        <th class="text-end">售價</th>
+                        <th>客製化</th>
+                        <th>狀態</th>
+                        <th class="text-end">操作</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach (var item in items)
+                    {
+                        <tr>
+                            <td>
+                                @item.Category.Name
+                                @if (!item.Category.IsActive)
+                                {
+                                    <span class="small text-muted">（已停用）</span>
+                                }
+                            </td>
+                            <td>@item.Name</td>
+                            <td class="text-end">$@item.Price.ToString("F0")</td>
+                            <td>
+                                @if (item.SupportsAddOns)
+                                {
+                                    <span class="badge badge-soft-info me-1">可加料</span>
+                                }
+                                @if (item.SupportsSpiceLevel)
+                                {
+                                    <span class="badge badge-soft-warning">可調辣</span>
+                                }
+                            </td>
+                            <td>
+                                <span class="badge @(item.IsActive ? "badge-soft-success" : "badge-soft-secondary")">
+                                    @(item.IsActive ? "上架中" : "已下架")
+                                </span>
+                            </td>
+                            <td class="text-end text-nowrap">
+                                <a asp-action="Edit" asp-route-id="@item.Id" class="btn btn-sm btn-outline-secondary">編輯</a>
+                                <form asp-action="ToggleActive" asp-route-id="@item.Id" method="post" class="d-inline">
+                                    <button type="submit" class="btn btn-sm @(item.IsActive ? "btn-outline-danger" : "btn-outline-success")">
+                                        @(item.IsActive ? "下架" : "上架")
+                                    </button>
+                                </form>
+                            </td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+            </div>
+        </div>
+    }
+
+    async Task AddOnGrid(List<AddOn> addOns, bool scrollable)
+    {
+        <div class="row row-cols-2 row-cols-md-3 row-cols-lg-4 g-3" style="@(scrollable ? "max-height: 520px; overflow-y: auto;" : null)">
+            @foreach (var addOn in addOns)
+            {
+                <div class="col">
+                    <div class="addon-card">
+                        <div class="d-flex justify-content-between align-items-start mb-2">
+                            <div class="fw-bold">@addOn.Name</div>
+                            <span class="badge @(addOn.IsActive ? "badge-soft-success" : "badge-soft-secondary")">
+                                @(addOn.IsActive ? "上架中" : "已下架")
+                            </span>
+                        </div>
+                        <div class="text-brand fw-bold mb-3">+$@addOn.Price.ToString("F0")</div>
+                        <div class="d-flex gap-2">
+                            <a asp-action="EditAddOn" asp-route-id="@addOn.Id" class="btn btn-sm btn-outline-secondary flex-grow-1">編輯</a>
+                            <form asp-action="ToggleAddOnActive" asp-route-id="@addOn.Id" method="post" class="flex-grow-1">
+                                <button type="submit" class="btn btn-sm w-100 @(addOn.IsActive ? "btn-outline-danger" : "btn-outline-success")">
+                                    @(addOn.IsActive ? "下架" : "上架")
+                                </button>
+                            </form>
+                        </div>
+                    </div>
+                </div>
+            }
+        </div>
+    }
+
+    // 排序只對啟用中的分類有意義（點餐頁只顯示啟用分類），停用分類不顯示上移／下移
+    async Task CategoryTable(List<ManTingEats.Models.MenuCategoryRow> rows, bool showMove)
+    {
+        <div class="card">
+            <div class="table-responsive">
+            <table class="table table-hover mb-0">
+                <thead>
+                    <tr>
+                        @if (showMove)
+                        {
+                            <th>順序</th>
+                        }
+                        <th>名稱</th>
+                        <th class="text-end">上架品項</th>
+                        <th>狀態</th>
+                        <th class="text-end">操作</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @for (var i = 0; i < rows.Count; i++)
+                    {
+                        var row = rows[i];
+                        <tr>
+                            @if (showMove)
+                            {
+                                <td class="text-nowrap">
+                                    <form asp-action="MoveCategory" asp-route-id="@row.Category.Id" asp-route-direction="-1" method="post" class="d-inline">
+                                        <button type="submit" class="btn btn-sm btn-outline-secondary" aria-label="上移" disabled="@(i == 0)">↑</button>
+                                    </form>
+                                    <form asp-action="MoveCategory" asp-route-id="@row.Category.Id" asp-route-direction="1" method="post" class="d-inline">
+                                        <button type="submit" class="btn btn-sm btn-outline-secondary" aria-label="下移" disabled="@(i == rows.Count - 1)">↓</button>
+                                    </form>
+                                </td>
+                            }
+                            <td>@row.Category.Name</td>
+                            <td class="text-end">
+                                @row.ActiveItemCount
+                                @if (row.ItemCount > row.ActiveItemCount)
+                                {
+                                    <span class="small text-muted">（另有 @(row.ItemCount - row.ActiveItemCount) 個已下架）</span>
+                                }
+                            </td>
+                            <td>
+                                <span class="badge @(row.Category.IsActive ? "badge-soft-success" : "badge-soft-secondary")">
+                                    @(row.Category.IsActive ? "啟用中" : "已停用")
+                                </span>
+                            </td>
+                            <td class="text-end text-nowrap">
+                                <a asp-action="EditCategory" asp-route-id="@row.Category.Id" class="btn btn-sm btn-outline-secondary">編輯</a>
+                                <form asp-action="ToggleCategoryActive" asp-route-id="@row.Category.Id" method="post" class="d-inline">
+                                    <button type="submit" class="btn btn-sm @(row.Category.IsActive ? "btn-outline-danger" : "btn-outline-success")">
+                                        @(row.Category.IsActive ? "停用" : "啟用")
+                                    </button>
+                                </form>
+                            </td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+            </div>
+        </div>
+    }
+
+    // 收合區塊預設收起，標題帶數量；沒有下架資料時不顯示
+    async Task InactiveSection(string id, string title, int count, Func<Task> content)
+    {
+        if (count == 0)
+        {
+            return;
+        }
+
+        <div class="inactive-section mt-4">
+            <button class="btn btn-link text-muted text-decoration-none px-0 collapsed" type="button"
+                    data-bs-toggle="collapse" data-bs-target="#@id" aria-expanded="false" aria-controls="@id">
+                <span class="inactive-section-arrow">▸</span> @title（@count）
+            </button>
+            <div class="collapse mt-2" id="@id">
+                @{ await content(); }
+            </div>
+        </div>
+    }
+}
+
+@* 新增按鈕與其他列表頁一樣放在標題列右側，依目前分頁切換為「新增品項」「新增加料」或「新增分類」 *@
 <div class="page-header d-flex justify-content-between align-items-center">
     <h1 class="mb-0">菜單管理</h1>
     <a asp-action="Create" class="btn btn-primary" data-menu-tab="items">+ 新增品項</a>
     <a asp-action="CreateAddOn" class="btn btn-primary d-none" data-menu-tab="addons">+ 新增加料</a>
+    <a asp-action="CreateCategory" class="btn btn-primary d-none" data-menu-tab="categories">+ 新增分類</a>
 </div>
 
 <ul class="nav nav-pills mb-3">
@@ -17,107 +199,54 @@
     <li class="nav-item">
         <button class="nav-link" id="pill-addons" data-bs-toggle="pill" data-bs-target="#tab-addons" data-menu-tab="addons" type="button">加料</button>
     </li>
+    <li class="nav-item">
+        <button class="nav-link" id="pill-categories" data-bs-toggle="pill" data-bs-target="#tab-categories" data-menu-tab="categories" type="button">分類</button>
+    </li>
 </ul>
 
 <div class="tab-content">
     <div class="tab-pane fade show active" id="tab-items">
-        @if (Model.Items.Count == 0)
+        @if (activeItems.Count == 0)
         {
-            <p class="text-muted">尚無菜單品項，請先新增。</p>
+            <p class="text-muted">尚無上架中的品項，請先新增。</p>
         }
         else
         {
-            <div class="card">
-                <div class="table-responsive">
-                <table class="table table-hover mb-0">
-                    <thead>
-                        <tr>
-                            <th>分類</th>
-                            <th>名稱</th>
-                            <th class="text-end">售價</th>
-                            <th>客製化</th>
-                            <th>狀態</th>
-                            <th class="text-end">操作</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        @foreach (var item in Model.Items)
-                        {
-                            <tr>
-                                <td>@item.Category.ToDisplayText()</td>
-                                <td>@item.Name</td>
-                                <td class="text-end">$@item.Price.ToString("F0")</td>
-                                <td>
-                                    @if (item.SupportsAddOns)
-                                    {
-                                        <span class="badge badge-soft-info me-1">可加料</span>
-                                    }
-                                    @if (item.SupportsSpiceLevel)
-                                    {
-                                        <span class="badge badge-soft-warning">可調辣</span>
-                                    }
-                                </td>
-                                <td>
-                                    <span class="badge @(item.IsActive ? "badge-soft-success" : "badge-soft-secondary")">
-                                        @(item.IsActive ? "上架中" : "已下架")
-                                    </span>
-                                </td>
-                                <td class="text-end text-nowrap">
-                                    <a asp-action="Edit" asp-route-id="@item.Id" class="btn btn-sm btn-outline-secondary">編輯</a>
-                                    <form asp-action="ToggleActive" asp-route-id="@item.Id" method="post" class="d-inline">
-                                        <button type="submit" class="btn btn-sm @(item.IsActive ? "btn-outline-danger" : "btn-outline-success")">
-                                            @(item.IsActive ? "下架" : "上架")
-                                        </button>
-                                    </form>
-                                </td>
-                            </tr>
-                        }
-                    </tbody>
-                </table>
-                </div>
-            </div>
+            await ItemTable(activeItems);
         }
+        @{ await InactiveSection("inactive-items", "已下架品項", inactiveItems.Count, () => ItemTable(inactiveItems)); }
     </div>
 
     <div class="tab-pane fade" id="tab-addons">
-        @if (Model.AddOns.Count == 0)
+        @if (activeAddOns.Count == 0)
         {
-            <p class="text-muted">尚無加料項目，請先新增。</p>
+            <p class="text-muted">尚無上架中的加料，請先新增。</p>
         }
         else
         {
-            <div class="row row-cols-2 row-cols-md-3 row-cols-lg-4 g-3" style="max-height: 520px; overflow-y: auto;">
-                @foreach (var addOn in Model.AddOns)
-                {
-                    <div class="col">
-                        <div class="addon-card">
-                            <div class="d-flex justify-content-between align-items-start mb-2">
-                                <div class="fw-bold">@addOn.Name</div>
-                                <span class="badge @(addOn.IsActive ? "badge-soft-success" : "badge-soft-secondary")">
-                                    @(addOn.IsActive ? "上架中" : "已下架")
-                                </span>
-                            </div>
-                            <div class="text-brand fw-bold mb-3">+$@addOn.Price.ToString("F0")</div>
-                            <div class="d-flex gap-2">
-                                <a asp-action="EditAddOn" asp-route-id="@addOn.Id" class="btn btn-sm btn-outline-secondary flex-grow-1">編輯</a>
-                                <form asp-action="ToggleAddOnActive" asp-route-id="@addOn.Id" method="post" class="flex-grow-1">
-                                    <button type="submit" class="btn btn-sm w-100 @(addOn.IsActive ? "btn-outline-danger" : "btn-outline-success")">
-                                        @(addOn.IsActive ? "下架" : "上架")
-                                    </button>
-                                </form>
-                            </div>
-                        </div>
-                    </div>
-                }
-            </div>
+            await AddOnGrid(activeAddOns, scrollable: true);
         }
+        @{ await InactiveSection("inactive-addons", "已下架加料", inactiveAddOns.Count, () => AddOnGrid(inactiveAddOns, scrollable: false)); }
+    </div>
+
+    <div class="tab-pane fade" id="tab-categories">
+        @* 分類只能停用不能刪除；順序即點餐頁分類分頁的順序（v17） *@
+        @if (activeCategories.Count == 0)
+        {
+            <p class="text-muted">尚無啟用中的分類，請先新增。</p>
+        }
+        else
+        {
+            await CategoryTable(activeCategories, showMove: true);
+        }
+        @{ await InactiveSection("inactive-categories", "已停用分類", inactiveCategories.Count, () => CategoryTable(inactiveCategories, showMove: false)); }
     </div>
 </div>
 
 
 @section Scripts {
     <script>
-        // 網址帶 #addons 時直接顯示加料分頁：新增／編輯／上下架加料後導回本頁，不必再手動切換分頁
+        // 網址帶 #addons／#categories 時直接顯示該分頁：新增／編輯／上下架後導回本頁，不必再手動切換分頁
         (() => {
             const syncHeaderButton = tab => document.querySelectorAll('.page-header [data-menu-tab]')
                 .forEach(button => button.classList.toggle('d-none', button.dataset.menuTab !== tab));
@@ -126,12 +255,13 @@
                 pill.addEventListener('shown.bs.tab', () => {
                     const tab = pill.dataset.menuTab;
                     syncHeaderButton(tab);
-                    history.replaceState(null, '', tab === 'addons' ? '#addons' : location.pathname + location.search);
+                    history.replaceState(null, '', tab === 'items' ? location.pathname + location.search : '#' + tab);
                 });
             });
 
-            if (location.hash === '#addons') {
-                bootstrap.Tab.getOrCreateInstance(document.getElementById('pill-addons')).show();
+            const hashPill = { '#addons': 'pill-addons', '#categories': 'pill-categories' }[location.hash];
+            if (hashPill) {
+                bootstrap.Tab.getOrCreateInstance(document.getElementById(hashPill)).show();
             }
         })();
     </script>

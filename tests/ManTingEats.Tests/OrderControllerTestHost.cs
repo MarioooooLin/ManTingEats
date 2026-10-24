@@ -26,6 +26,7 @@ public sealed class OrderControllerTestHost : IDisposable
     public const int InactiveItemId = 3;    // 已下架品項
     public const int EggAddOnId = 1;        // 加料：$10
     public const int InactiveAddOnId = 2;   // 已停用加料
+    public const int CategoryId = 1;        // 品項預設所屬的分類（v17 起品項必須有分類）
 
     private readonly SqliteConnection _connection;
 
@@ -38,10 +39,11 @@ public sealed class OrderControllerTestHost : IDisposable
         using var db = CreateDbContext();
         db.Database.EnsureCreated();
         db.Employees.Add(new Employee { Id = EmployeeId, Username = "admin", PasswordHash = "x" });
+        db.MenuCategories.Add(new MenuCategory { Id = CategoryId, Name = "吃", SortOrder = 0 });
         db.MenuItems.AddRange(
-            new MenuItem { Id = SimpleItemId, Name = "酸梅湯", Price = 100m, Category = MenuCategory.Drink },
-            new MenuItem { Id = CustomItemId, Name = "爆辣冷麵", Price = 120m, SupportsAddOns = true, SupportsSpiceLevel = true },
-            new MenuItem { Id = InactiveItemId, Name = "停賣品", Price = 50m, IsActive = false });
+            new MenuItem { Id = SimpleItemId, Name = "酸梅湯", Price = 100m, CategoryId = CategoryId },
+            new MenuItem { Id = CustomItemId, Name = "爆辣冷麵", Price = 120m, CategoryId = CategoryId, SupportsAddOns = true, SupportsSpiceLevel = true },
+            new MenuItem { Id = InactiveItemId, Name = "停賣品", Price = 50m, CategoryId = CategoryId, IsActive = false });
         db.AddOns.AddRange(
             new AddOn { Id = EggAddOnId, Name = "加蛋", Price = 10m },
             new AddOn { Id = InactiveAddOnId, Name = "停用加料", Price = 20m, IsActive = false });

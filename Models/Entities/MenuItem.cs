@@ -1,12 +1,11 @@
-using ManTingEats.Models.Enums;
-
 namespace ManTingEats.Models.Entities;
 
 public sealed class MenuItem
 {
     public int Id { get; set; }
     public required string Name { get; set; }
-    public MenuCategory Category { get; set; }
+    public int CategoryId { get; set; }
+    public MenuCategory Category { get; set; } = null!;
     public decimal Price { get; set; }
     public bool IsActive { get; set; } = true;
     public bool SupportsAddOns { get; set; }

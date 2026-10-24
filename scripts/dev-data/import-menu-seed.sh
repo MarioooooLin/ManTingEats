@@ -1,5 +1,5 @@
 #!/bin/sh
-# 將開發用測試菜單（menu-seed.sql：MenuItems、AddOns）匯入本機 Docker 資料庫。
+# 將開發用測試菜單（menu-seed.sql：MenuCategories、MenuItems、AddOns）匯入本機 Docker 資料庫。
 # 僅含菜單／加料測試資料，不含訂單、訂位、員工等個人資料（repo 為公開，勿將真實資料加入此檔）。
 #
 # 使用方式（Windows 請用 Git Bash 執行，PowerShell 的 < 重新導向會破壞中文編碼）：
@@ -14,4 +14,4 @@ PROJECT_DIR="$(cd "$SCRIPT_DIR/../.." && pwd)"
 docker compose -f "$PROJECT_DIR/docker-compose.yml" exec -T db \
   mysql -uroot -prootpassword --default-character-set=utf8mb4 ManTingEatsDb < "$SCRIPT_DIR/menu-seed.sql"
 
-echo "已匯入測試菜單與加料。"
+echo "已匯入測試分類、菜單與加料。"

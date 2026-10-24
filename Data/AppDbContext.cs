@@ -11,6 +11,7 @@ public sealed class AppDbContext : DbContext
 
     public DbSet<Employee> Employees => Set<Employee>();
     public DbSet<MenuItem> MenuItems => Set<MenuItem>();
+    public DbSet<MenuCategory> MenuCategories => Set<MenuCategory>();
     public DbSet<Order> Orders => Set<Order>();
     public DbSet<OrderItem> OrderItems => Set<OrderItem>();
     public DbSet<Reservation> Reservations => Set<Reservation>();
@@ -32,6 +33,19 @@ public sealed class AppDbContext : DbContext
         {
             entity.Property(e => e.Name).HasMaxLength(100);
             entity.Property(e => e.Price).HasPrecision(10, 2);
+
+            // 分類只能停用不能刪除（v17），Restrict 防止誤刪分類連帶刪除品項
+            entity.HasOne(e => e.Category)
+                .WithMany(c => c.MenuItems)
+                .HasForeignKey(e => e.CategoryId)
+                .OnDelete(DeleteBehavior.Restrict);
+        });
+
+        modelBuilder.Entity<MenuCategory>(entity =>
+        {
+            // 分類名稱即點餐頁分頁標籤，重複會分不出來（含已停用的分類）
+            entity.HasIndex(e => e.Name).IsUnique();
+            entity.Property(e => e.Name).HasMaxLength(20);
         });
 
         modelBuilder.Entity<Order>(entity =>

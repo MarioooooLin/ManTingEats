@@ -424,3 +424,12 @@ body {
   border-top: 1px solid var(--bs-border-color);
 }
 
+/* 菜單管理（v17）：下架／停用的收合區塊，展開時箭頭轉向 */
+.inactive-section-arrow {
+  display: inline-block;
+  transition: transform .15s ease;
+}
+
+.inactive-section > button:not(.collapsed) .inactive-section-arrow {
+  transform: rotate(90deg);
+}

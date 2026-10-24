@@ -172,6 +172,33 @@ namespace ManTingEats.Migrations
                     b.ToTable("Expenses");
                 });
 
+            modelBuilder.Entity("ManTingEats.Models.Entities.MenuCategory", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    MySqlPropertyBuilderExtensions.UseMySqlIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<bool>("IsActive")
+                        .HasColumnType("tinyint(1)");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("varchar(20)");
+
+                    b.Property<int>("SortOrder")
+                        .HasColumnType("int");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("Name")
+                        .IsUnique();
+
+                    b.ToTable("MenuCategories");
+                });
+
             modelBuilder.Entity("ManTingEats.Models.Entities.MenuItem", b =>
                 {
                     b.Property<int>("Id")
@@ -180,7 +207,7 @@ namespace ManTingEats.Migrations
 
                     MySqlPropertyBuilderExtensions.UseMySqlIdentityColumn(b.Property<int>("Id"));
 
-                    b.Property<int>("Category")
+                    b.Property<int>("CategoryId")
                         .HasColumnType("int");
 
                     b.Property<bool>("IsActive")
@@ -202,6 +229,8 @@ namespace ManTingEats.Migrations
                         .HasColumnType("tinyint(1)");
 
                     b.HasKey("Id");
+
+                    b.HasIndex("CategoryId");
 
                     b.ToTable("MenuItems");
                 });
@@ -390,6 +419,17 @@ namespace ManTingEats.Migrations
                     b.Navigation("ClosedByEmployee");
                 });
 
+            modelBuilder.Entity("ManTingEats.Models.Entities.MenuItem", b =>
+                {
+                    b.HasOne("ManTingEats.Models.Entities.MenuCategory", "Category")
+                        .WithMany("MenuItems")
+                        .HasForeignKey("CategoryId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.Navigation("Category");
+                });
+
             modelBuilder.Entity("ManTingEats.Models.Entities.Order", b =>
                 {
                     b.HasOne("ManTingEats.Models.Entities.Employee", "CreatedByEmployee")
@@ -461,6 +501,11 @@ namespace ManTingEats.Migrations
             modelBuilder.Entity("ManTingEats.Models.Entities.Employee", b =>
                 {
                     b.Navigation("CreatedOrders");
+                });
+
+            modelBuilder.Entity("ManTingEats.Models.Entities.MenuCategory", b =>
+                {
+                    b.Navigation("MenuItems");
                 });
 
             modelBuilder.Entity("ManTingEats.Models.Entities.MenuItem", b =>
