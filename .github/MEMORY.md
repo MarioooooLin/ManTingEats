@@ -40,7 +40,10 @@
   - 2026-10-13 整批點餐（v14，`docs/prd/v14.md`）：品項先放進「本次點餐」清單、送出即出單（手機不出單、提示到 iPad 出單；訂單列表標示待出單）；待出單上限 20 項。使用者已於本機測試通過（清單操作、送出即出單、手機提示）。已部署（見下方部署紀錄），2026-10-23 使用者回報店內實測正常。
   - 2026-10-13 未成立訂單取消即刪除（v15，`docs/prd/v15.md`）：從未出單的訂單「取消」改為直接刪除（不留單號、不進列表與日結），作廢只限已成立訂單，作廢時刪除未出單品項。使用者已於本機測試通過，已部署。
   - 2026-10-13 外帶點完即結帳（v16，`docs/prd/v16.md`）：外帶單出單成功且無待出單品項時，自動打開結帳視窗。使用者已於本機測試通過，已部署，2026-10-23 使用者回報店內實測正常。
-  - 2026-11-06 日結與營收報表加入外送營收（v18，`docs/prd/v18.md`）：日結填 Uber Eats／foodpanda 訂單數、營業額、實收，報表新增總營業額、淨利改用外送實收。含 Migration `AddDeliveryToDailyClosing`。**尚待使用者本機瀏覽器實測，未部署。**
+  - 2026-11-06 日結與營收報表加入外送營收（v18，`docs/prd/v18.md`）：日結填 Uber Eats／foodpanda 訂單數、營業額、實收，報表新增總營業額、淨利改用外送實收。含 Migration `AddDeliveryToDailyClosing`。**已 push，未部署；尚待使用者本機瀏覽器實測。**
+    - 2026-11-06 07:20 曾在電腦 TTM00202 嘗試部署：該電腦的 SSH 金鑰未加入主機（`Permission denied (publickey)`），**部署未開始、正式環境仍為 v17**。該電腦已產生 `~/.ssh/mantingeats`（公鑰註解 `mantingeats-TTM00202`），尚未加入主機 `authorized_keys`；Vultr 網頁主控台無法貼上，可改在主機執行 `curl -s https://github.com/MarioooooLin.keys | grep GefrxNlugv >> /root/.ssh/authorized_keys`（需先把該公鑰加到 GitHub 帳號）。
+    - **待辦：到已可連線的電腦部署**：`git pull` 取得本版 → 打烊後 SSH 到主機 → `sh scripts/backup-db.sh` 備份 → 確認未結帳訂單 0 張（只查筆數）→ `cd /opt/mantingeats && git pull && docker compose -f docker-compose.prod.yml up -d --build` → web 日誌確認 `Applying migration '20261106033526_AddDeliveryToDailyClosing'` 且無錯誤、HTTPS 登入頁 200 → 本機 `git tag v18 <部署的 commit> && git push origin v18` → MEMORY 補部署紀錄。
+    - TTM00202 本機開發資料庫有 2026-09-29 假營業日（4 張單、1 筆支出，備註「測試-v18」）供測試 v18，只在該電腦本機。
   - 2026-10-25 店長自行管理菜單分類（v17，`docs/prd/v17.md`）：分類改為資料表，菜單管理新增「分類」分頁（新增、改名、上移／下移、只停用不刪除；有上架品項時不能停用）；分類、品項、加料下架／停用的收到列表最下方收合區塊。含 Migration `AddMenuCategory`。使用者已於本機測試通過，2026-10-25 已部署（見下方部署紀錄），2026-10-26 使用者回報店內實測正常。
 - **接下來的期限與待辦**：
   - **2026-11-06 Vultr 促銷額度到期**，之後由信用卡扣款（主機＋自動備份約 $12／月）。
