@@ -10,7 +10,7 @@
 ## 溝通與工作慣例
 
 - 一律使用**繁體中文**與使用者溝通，程式碼註解也用繁體中文，說明「為什麼」而不只是「做什麼」。
-- 每次程式碼變更後，依 `copilot-instructions.md` 7.3 節在 `MEMORY.md` 最上方新增紀錄；commit 分兩個：功能本身＋`docs(memory): ...`。
+- 每次程式碼變更後，依 `copilot-instructions.md` 7.3 節在 `MEMORY.md` 最上方新增紀錄；**程式、測試、文件（含 MEMORY）放在同一個 commit**（2026-11-06 起，原本分兩個 commit）。MEMORY 以版本號（如 v18）指稱功能，不寫 commit 編號；部署時在部署的 commit 打版本 tag（如 `git tag v18`）作為紀錄。事後補記（部署結果、店內實測）仍可另開 `docs(memory): ...` commit。
 - Commit／push 前先詢問使用者。
 
 ## 本機開發環境

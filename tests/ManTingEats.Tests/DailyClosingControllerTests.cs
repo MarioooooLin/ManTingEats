@@ -187,6 +187,100 @@ public sealed class DailyClosingControllerTests : IDisposable
         Assert.Equal("補登食材支出", closings[1].Note);
     }
 
+    // ── 外送平台（v18） ─────────────────────────────────────────
+
+    [Fact]
+    public async Task Close_SavesDeliveryTotals_WithoutAffectingExpectedCash()
+    {
+        SeedCompleted(TodayStartUtc.AddHours(12), quantity: 3);   // 店內營收 $300
+        var command = Command(counted: 15300m) with
+        {
+            UberEatsOrderCount = 4, UberEatsSales = 1200m, UberEatsPayout = 850m,
+            FoodpandaOrderCount = 2, FoodpandaSales = 500m, FoodpandaPayout = 380m
+        };
+
+        Assert.IsType<RedirectToActionResult>(await CreateController().Close(command));
+
+        var closing = Assert.Single(LoadClosings());
+        Assert.Equal((4, 1200m, 850m), (closing.UberEatsOrderCount, closing.UberEatsSales, closing.UberEatsPayout));
+        Assert.Equal((2, 500m, 380m), (closing.FoodpandaOrderCount, closing.FoodpandaSales, closing.FoodpandaPayout));
+        Assert.Equal(1700m, closing.DeliverySales);
+        Assert.Equal(1230m, closing.DeliveryPayout);
+        Assert.Equal(2000m, closing.TotalSales);       // 店內 300 + 外送 1700
+        Assert.Equal(15300m, closing.ExpectedCash);    // 外送款不進收銀機
+        Assert.Equal(0m, closing.Difference);
+    }
+
+    [Fact]
+    public async Task Close_BlankDelivery_SavedAsZero()
+    {
+        await CreateController().Close(Command(counted: 15000m));
+
+        var closing = Assert.Single(LoadClosings());
+        Assert.Equal(0, closing.UberEatsOrderCount + closing.FoodpandaOrderCount);
+        Assert.Equal(0m, closing.DeliverySales);
+        Assert.Equal(0m, closing.DeliveryPayout);
+    }
+
+    [Fact]
+    public async Task Close_PartialDeliveryPlatform_IsRejected()
+    {
+        var controller = CreateController();
+        var command = Command(counted: 15000m) with { UberEatsSales = 1200m };   // 只填營業額
+
+        var result = await controller.Close(command);
+
+        Assert.IsType<ViewResult>(result);
+        Assert.True(controller.ModelState.ContainsKey("Form.UberEatsOrderCount"));
+        Assert.True(controller.ModelState.ContainsKey("Form.UberEatsPayout"));
+        Assert.False(controller.ModelState.ContainsKey("Form.UberEatsSales"));
+        Assert.False(controller.ModelState.ContainsKey("Form.FoodpandaSales"));   // 整個平台留空不擋
+        Assert.Empty(LoadClosings());
+    }
+
+    [Fact]
+    public async Task Close_DeliveryPlatformAllZero_IsAccepted()
+    {
+        var command = Command(counted: 15000m) with { FoodpandaOrderCount = 0, FoodpandaSales = 0m, FoodpandaPayout = 0m };
+
+        Assert.IsType<RedirectToActionResult>(await CreateController().Close(command));
+        Assert.Single(LoadClosings());
+    }
+
+    [Fact]
+    public async Task Index_Reclose_PrefillsDeliveryFromLatestClosing()
+    {
+        await CreateController().Close(Command(counted: 15000m) with
+        {
+            UberEatsOrderCount = 3, UberEatsSales = 900m, UberEatsPayout = 650m,
+            FoodpandaOrderCount = 1, FoodpandaSales = 250m, FoodpandaPayout = 200m
+        });
+
+        var model = await IndexAsync();
+
+        Assert.True(model.IsReclose);
+        Assert.Equal(3, model.Form.UberEatsOrderCount);
+        Assert.Equal(900m, model.Form.UberEatsSales);
+        Assert.Equal(200m, model.Form.FoodpandaPayout);
+    }
+
+    [Theory]
+    [InlineData(-1, 0, false)]     // 訂單數不可為負
+    [InlineData(0, -100, false)]   // 金額不可為負
+    [InlineData(0, 10.5, false)]   // 金額需為整數
+    [InlineData(5, 1000, true)]
+    public void CloseDayCommand_ValidatesDeliveryFields(int orderCount, double sales, bool expectedValid)
+    {
+        var command = Command(counted: 15000m) with { UberEatsOrderCount = orderCount, FoodpandaSales = (decimal)sales };
+
+        // 驗證屬性標在 record 建構子參數上（MVC 繫結時檢查），Validator.TryValidateObject 看不到，故逐一參數檢查
+        var parameters = typeof(CloseDayCommand).GetConstructors().MaxBy(c => c.GetParameters().Length)!.GetParameters();
+        var isValid = parameters.All(p => p.GetCustomAttributes<System.ComponentModel.DataAnnotations.ValidationAttribute>()
+            .All(a => a.IsValid(typeof(CloseDayCommand).GetProperty(p.Name!)!.GetValue(command))));
+
+        Assert.Equal(expectedValid, isValid);
+    }
+
     // ── 日結紀錄 ────────────────────────────────────────────────
 
     [Fact]

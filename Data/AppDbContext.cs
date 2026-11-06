@@ -131,6 +131,10 @@ public sealed class AppDbContext : DbContext
             entity.Property(e => e.ExpenseTotal).HasPrecision(10, 2);
             entity.Property(e => e.DiscountTotal).HasPrecision(10, 2);
             entity.Property(e => e.CountedCash).HasPrecision(10, 2);
+            entity.Property(e => e.UberEatsSales).HasPrecision(10, 2);
+            entity.Property(e => e.UberEatsPayout).HasPrecision(10, 2);
+            entity.Property(e => e.FoodpandaSales).HasPrecision(10, 2);
+            entity.Property(e => e.FoodpandaPayout).HasPrecision(10, 2);
             entity.Property(e => e.Note).HasMaxLength(200);
 
             entity.HasOne(e => e.ClosedByEmployee)

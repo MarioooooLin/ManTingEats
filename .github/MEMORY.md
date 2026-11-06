@@ -6,7 +6,7 @@
 
 ## 📍 目前進度與下一步（交接用，每次收工前更新）
 
-> 最後更新：2026-10-26。開發者會在公司與家裡兩台電腦間切換，**對話紀錄不會同步**，接手時以本段為準。
+> 最後更新：2026-11-06。開發者會在公司與家裡兩台電腦間切換，**對話紀錄不會同步**，接手時以本段為準。
 
 ### 出單列印改為 iPad + PassPRNT（2026-10-04 實機測試通過）
 
@@ -40,6 +40,7 @@
   - 2026-10-13 整批點餐（v14，`docs/prd/v14.md`）：品項先放進「本次點餐」清單、送出即出單（手機不出單、提示到 iPad 出單；訂單列表標示待出單）；待出單上限 20 項。使用者已於本機測試通過（清單操作、送出即出單、手機提示）。已部署（見下方部署紀錄），2026-10-23 使用者回報店內實測正常。
   - 2026-10-13 未成立訂單取消即刪除（v15，`docs/prd/v15.md`）：從未出單的訂單「取消」改為直接刪除（不留單號、不進列表與日結），作廢只限已成立訂單，作廢時刪除未出單品項。使用者已於本機測試通過，已部署。
   - 2026-10-13 外帶點完即結帳（v16，`docs/prd/v16.md`）：外帶單出單成功且無待出單品項時，自動打開結帳視窗。使用者已於本機測試通過，已部署，2026-10-23 使用者回報店內實測正常。
+  - 2026-11-06 日結與營收報表加入外送營收（v18，`docs/prd/v18.md`）：日結填 Uber Eats／foodpanda 訂單數、營業額、實收，報表新增總營業額、淨利改用外送實收。含 Migration `AddDeliveryToDailyClosing`。**尚待使用者本機瀏覽器實測，未部署。**
   - 2026-10-25 店長自行管理菜單分類（v17，`docs/prd/v17.md`）：分類改為資料表，菜單管理新增「分類」分頁（新增、改名、上移／下移、只停用不刪除；有上架品項時不能停用）；分類、品項、加料下架／停用的收到列表最下方收合區塊。含 Migration `AddMenuCategory`。使用者已於本機測試通過，2026-10-25 已部署（見下方部署紀錄），2026-10-26 使用者回報店內實測正常。
 - **接下來的期限與待辦**：
   - **2026-11-06 Vultr 促銷額度到期**，之後由信用卡扣款（主機＋自動備份約 $12／月）。
@@ -54,7 +55,8 @@
     - **現況**：店內出單機為 Star mC-Print3 **MCP31L**（LAN＋USB，**無藍牙**），以 USB 接 iPad；店內網路線拉不到出單機。iPad 上的 Uber Eats 接單 App（「訂單管理後台」）找得到 MCP31L，但測試列印不出紙（已排除 PassPRNT 佔用、出單機本身正常）；可能為指令模式（emulation）不相容或 iPad 版不支援 USB 出單，**勿自行修改出單機設定**（可能讓 PassPRNT 也印不出），需問 Uber 台灣客服或 Star 經銷商。
     - **目前做法**：先只看單不印，建議 Android 平板專門接 Uber 單（接電源、音量開大、關自動鎖定），iPad 維持點餐出單。同一帳號能否兩台同時登入未確認。
     - **長期出單（待詢問後決定）**：Uber 台灣官方教學（2025-09-22）只示範藍牙出單機 Epson TM-M30／TM-M10，未提 mC-Print3；foodpanda 查不到支援清單。若換機須選 **Star 品牌**（PassPRNT 只支援 Star，換 Epson 需重寫出單），候選 mC-Print3 MCP31LB／MCP31CBI（藍牙＋USB）；需先向 Uber、foodpanda、Star 經銷商確認支援並最好實機測試，另確認兩平台 App 能否共用同一台藍牙出單機。若任一平台不支援 Star，則保留現機給點餐系統，另買兩平台都支援的藍牙出單機專印外送單。
-    - 外送業績是否進報表／日結仍待決定（上一項的待決事項）；若要記錄，可選每張單輸入或每日各平台一筆總額。
+    - ~~外送業績是否進報表／日結仍待決定~~ → **2026-11-06 已決定並實作（v18）**：日結時手動填各平台當日訂單數、營業額、實收，報表納入；見 2026-11-06 紀錄。
+    - 出單機（2026-11-06 討論，未決定）：若要擺脫 PassPRNT 並與外送共用，候選 Epson TM-m30III Wi-Fi＋藍牙版（支援 Server Direct Print，Uber 台灣教學示範 TM-M30；台灣版料號與繁中字型待問經銷商，**勿從淘寶買大陸版**），需店內 Wi-Fi 且出單程式重寫、改 80mm。CP 值最高的替代方案：點餐維持 MCP31L＋PassPRNT，外送另買雙平台出單機（如「熊好印」雲端機約 NT$4,500）。foodpanda 無公開支援清單，兩平台能否共用一台藍牙機未確認。
   - 業界標準優化建議（2026-10-10 提出）：已完成 SSH 加固與容器日誌上限；其餘依序為異地備份、外部監控（UptimeRobot）、GitHub Actions CI、改為 CI 建置 image、稽核紀錄（支出修改／訂單作廢）、單號唯一索引、營收計算抽 Service 層（做電子支付前建議先做）、Caddy 安全標頭、隱私權政策聯絡資訊。
   - 其他見下方「Review 待辦」（隱私權政策聯絡資訊、README 整理等）。
 
@@ -116,6 +118,34 @@
 - 2026-10-07 起 db 有健康檢查、web 會等 db 就緒才啟動，不再需要手動 `docker compose restart web`。
 - 若本機已裝 MySQL 佔用 3306（Mac 那台即是），需先到「系統設定 → MySQL」停用，否則 db 容器無法啟動。
 - GitHub repo 為**公開**，不得 commit 真實資料或機密。
+
+---
+
+### [2026-11-06] 日結與營收報表加入外送營收（v18）
+
+**變更內容**
+
+- 規格 `docs/prd/v18.md`。
+- `Models/Entities/DailyClosing.cs`：新增 `UberEatsOrderCount／UberEatsSales／UberEatsPayout`、`FoodpandaOrderCount／FoodpandaSales／FoodpandaPayout`（非 nullable、預設 0），唯讀 `DeliverySales`、`DeliveryPayout`、`TotalSales`；`ExpectedCash` 不變。`AppDbContext` 金額 `HasPrecision(10, 2)`。
+- Migration `20261106033526_AddDeliveryToDailyClosing`（只新增 6 欄，預設 0，以 Docker .NET 9 SDK 的 `dotnet-ef 9.0.0` 產生）。
+- `CloseDayCommand` 末端新增 6 個選填參數（預設 null、`Range` 下限 0、金額 `WholeAmount`）；`DailyClosingController.Close` 存入（空白存 0），重結時預填上次的外送數字。
+- `Close` 新增 `ValidateDeliveryComplete`：同一平台只要填了任一格，訂單數／營業額／實收三格都必填（沒單填 0），整個平台留空可（使用者 2026-11-06 要求：留空存 0，只填一部分會讓總營業額或淨利少算）。
+- 畫面：`Views/DailyClosing/Index.cshtml` 現金對帳下方新增「外送平台」表格與即時合計（店內營收／外送營業額／總營業額／外送實收），彙總卡「營收」改稱「店內營收」；`Details.cshtml` 顯示外送明細與總營業額；`History.cshtml` 新增「外送營業額」欄。
+- 營收報表：`ReportController` 取區間內每個營業日最後一次日結的外送數字（同 `History` 的 `Id == Max(Id)` 寫法）；`ReportViewModel` 新增 `DeliveryBreakdown`、`UnclosedDayCount`、`TotalSales`，`NetProfit` 改為店內營收＋外送實收－支出；`ChannelRevenue` 新增訂單數；`Views/Report/Index.cshtml` 改為四張卡（總營業額、店內營收、總支出、淨利）、通路表加外送兩列與訂單數／實收欄、未日結天數提示。
+- 測試：`DailyClosingControllerTests` 新增 9 個（外送快照、空白存 0、只填部分被擋、三格皆 0 可通過、重結預填、欄位驗證 4 組）；`ReportControllerTests` 新增 2 個（只取最後一次日結、淨利用實收、未日結天數不含未來）。
+
+**決策原因**
+
+- 使用者決議（2026-11-06）：每日手動輸入各平台總額（不逐筆、不串 API）；實收照平台後台抄（抽成 % 無官方公開數字，實際費用含活動補貼等，估算會有誤差）；在日結頁一起填、店長與員工都能填；空白視為 0；營收報表也納入。
+- 存在 `DailyClosing`、不另建資料表：跟著日結快照與「重結以最後一筆為準」的既有規則，報表與日結紀錄自然一致；平台只有兩個，固定欄位最簡單。
+- 外送款不進收銀機，現金對帳公式不變；淨利以實收計算才是實際入帳。原「總營收」改稱「店內營收」並保持算法，維持「品項＋加料排行 − 折扣 = 店內營收」的對帳關係。
+- 營收算法抽 Service 層（MEMORY 業界標準建議）不在本次範圍：日結與報表的店內營收算法未變動。
+- Commit 慣例調整（使用者 2026-11-06 決議，比照業界 atomic commit）：程式、測試、文件含 MEMORY 合為一個 commit，MEMORY 以版本號指稱、不寫 commit 編號，部署時打版本 tag；`CLAUDE.md` 同步修改。本次 v18 即為第一個採用的 commit。
+
+**驗證結果**
+
+- Docker 內 .NET 9 SDK：`dotnet build` 成功，`dotnet test` 223 項全數通過。
+- 本機 `docker compose up -d --build`：啟動時套用 `AddDeliveryToDailyClosing` 成功、無錯誤；以 admin 登入後日結頁（無未結帳單的營業日）出現 6 個外送欄位、日結紀錄與報表皆 200，報表顯示總營業額與未日結提示。未實際送出日結（避免改動本機開發資料），待使用者瀏覽器實測。
 
 ---
 

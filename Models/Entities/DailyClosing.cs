@@ -28,6 +28,15 @@ public sealed class DailyClosing
     /// <summary>實際點算的現金總額。</summary>
     public decimal CountedCash { get; set; }
 
+    // 外送平台（v18）：外送單在各平台自己的 App 處理、金流不經過本系統，日結時照平台商家後台手動抄當日總額；
+    // 營業額為顧客付的金額，實收為平台扣抽成與各項費用後撥給店家的金額。沒填視為 0。
+    public int UberEatsOrderCount { get; set; }
+    public decimal UberEatsSales { get; set; }
+    public decimal UberEatsPayout { get; set; }
+    public int FoodpandaOrderCount { get; set; }
+    public decimal FoodpandaSales { get; set; }
+    public decimal FoodpandaPayout { get; set; }
+
     /// <summary>差額說明，重新日結時必填原因。</summary>
     public string? Note { get; set; }
 
@@ -40,4 +49,12 @@ public sealed class DailyClosing
 
     /// <summary>差額 = 實點 − 應有；正數為多、負數為少。</summary>
     public decimal Difference => CountedCash - ExpectedCash;
+
+    /// <summary>外送營業額合計（v18）；外送款不進收銀機，不影響 <see cref="ExpectedCash"/>。</summary>
+    public decimal DeliverySales => UberEatsSales + FoodpandaSales;
+
+    public decimal DeliveryPayout => UberEatsPayout + FoodpandaPayout;
+
+    /// <summary>店內＋外送營業額合計（v18）。</summary>
+    public decimal TotalSales => Revenue + DeliverySales;
 }

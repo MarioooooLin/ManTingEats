@@ -38,6 +38,17 @@
                             <tr><td>折扣</td><td class="text-end">$@closing.DiscountTotal.ToString("F0")</td></tr>
                         </tbody>
                     </table>
+                    @* 外送平台（v18）：照平台後台手動填寫，不列入應有現金 *@
+                    <table class="table table-sm mt-3 mb-0">
+                        <thead>
+                            <tr><th>外送平台</th><th class="text-end">訂單數</th><th class="text-end">營業額</th><th class="text-end">實收</th></tr>
+                        </thead>
+                        <tbody>
+                            <tr><td>Uber Eats</td><td class="text-end">@closing.UberEatsOrderCount</td><td class="text-end">$@closing.UberEatsSales.ToString("F0")</td><td class="text-end">$@closing.UberEatsPayout.ToString("F0")</td></tr>
+                            <tr><td>foodpanda</td><td class="text-end">@closing.FoodpandaOrderCount</td><td class="text-end">$@closing.FoodpandaSales.ToString("F0")</td><td class="text-end">$@closing.FoodpandaPayout.ToString("F0")</td></tr>
+                            <tr class="fw-bold"><td>總營業額（含店內）</td><td></td><td class="text-end">$@closing.TotalSales.ToString("F0")</td><td></td></tr>
+                        </tbody>
+                    </table>
                 </div>
                 <div class="col-md-6">
                     <table class="table table-sm mb-0">

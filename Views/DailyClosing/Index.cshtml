@@ -96,7 +96,7 @@
     <div class="col-md-4">
         <div class="card h-100">
             <div class="card-body">
-                <h6 class="text-muted">營收</h6>
+                <h6 class="text-muted">店內營收</h6>
                 <p class="display-6 mb-0">$@summary.Revenue.ToString("F0")</p>
             </div>
         </div>
@@ -150,6 +150,52 @@
                         </div>
 
                         <p class="fs-5 mb-3">差額：<strong id="difference-text">—</strong></p>
+
+                        @* 外送平台（v18）：金流不經過收銀機，不列入上方應有現金；照各平台商家後台當日數字填寫，沒單可留空 *@
+                        <h6 class="mt-4">外送平台</h6>
+                        <p class="form-text mt-0">照 Uber Eats／foodpanda 商家後台當日數字填寫；有填就要三格都填（沒單填 0），整個平台沒開可留空；不影響現金對帳</p>
+                        <div class="table-responsive">
+                            <table class="table table-sm align-middle mb-2">
+                                <thead>
+                                    <tr>
+                                        <th>平台</th>
+                                        <th>訂單數</th>
+                                        <th>營業額</th>
+                                        <th>實收（扣抽成）</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    <tr>
+                                        <td class="text-nowrap">Uber Eats</td>
+                                        <td><input asp-for="Form.UberEatsOrderCount" class="form-control" type="number" min="0" step="1" inputmode="numeric" data-delivery="count" /></td>
+                                        <td><input asp-for="Form.UberEatsSales" asp-format="{0:F0}" class="form-control" type="number" min="0" step="1" inputmode="numeric" data-msg-step="金額需為整數" data-delivery="sales" /></td>
+                                        <td><input asp-for="Form.UberEatsPayout" asp-format="{0:F0}" class="form-control" type="number" min="0" step="1" inputmode="numeric" data-msg-step="金額需為整數" data-delivery="payout" /></td>
+                                    </tr>
+                                    <tr>
+                                        <td class="text-nowrap">foodpanda</td>
+                                        <td><input asp-for="Form.FoodpandaOrderCount" class="form-control" type="number" min="0" step="1" inputmode="numeric" data-delivery="count" /></td>
+                                        <td><input asp-for="Form.FoodpandaSales" asp-format="{0:F0}" class="form-control" type="number" min="0" step="1" inputmode="numeric" data-msg-step="金額需為整數" data-delivery="sales" /></td>
+                                        <td><input asp-for="Form.FoodpandaPayout" asp-format="{0:F0}" class="form-control" type="number" min="0" step="1" inputmode="numeric" data-msg-step="金額需為整數" data-delivery="payout" /></td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+                        <div class="mb-2">
+                            <span asp-validation-for="Form.UberEatsOrderCount" class="text-danger d-block"></span>
+                            <span asp-validation-for="Form.UberEatsSales" class="text-danger d-block"></span>
+                            <span asp-validation-for="Form.UberEatsPayout" class="text-danger d-block"></span>
+                            <span asp-validation-for="Form.FoodpandaOrderCount" class="text-danger d-block"></span>
+                            <span asp-validation-for="Form.FoodpandaSales" class="text-danger d-block"></span>
+                            <span asp-validation-for="Form.FoodpandaPayout" class="text-danger d-block"></span>
+                        </div>
+                        <table class="table table-sm mb-3">
+                            <tbody>
+                                <tr><td>店內營收</td><td class="text-end">$@summary.Revenue.ToString("F0")</td></tr>
+                                <tr><td>＋ 外送營業額</td><td class="text-end" id="delivery-sales-text"></td></tr>
+                                <tr class="fw-bold"><td>總營業額</td><td class="text-end" id="total-sales-text"></td></tr>
+                                <tr><td>外送實收</td><td class="text-end" id="delivery-payout-text"></td></tr>
+                            </tbody>
+                        </table>
 
                         <div class="mb-3">
                             <label asp-for="Form.Note" class="form-label">@(Model.IsReclose ? "重新日結原因（必填）" : "備註")</label>
@@ -209,9 +255,29 @@
                 }
             }
 
+            // 外送合計（v18）：只供對照，不影響應有現金
+            function sumDelivery(kind) {
+                var total = 0;
+                form.querySelectorAll('[data-delivery="' + kind + '"]').forEach(function (input) {
+                    total += Number(input.value || 0);
+                });
+                return total;
+            }
+
+            function updateDelivery() {
+                var deliverySales = sumDelivery('sales');
+                document.getElementById('delivery-sales-text').textContent = money(deliverySales);
+                document.getElementById('total-sales-text').textContent = money(revenue + deliverySales);
+                document.getElementById('delivery-payout-text').textContent = money(sumDelivery('payout'));
+            }
+
             opening.addEventListener('input', update);
             counted.addEventListener('input', update);
+            form.querySelectorAll('[data-delivery]').forEach(function (input) {
+                input.addEventListener('input', updateDelivery);
+            });
             update();
+            updateDelivery();
         })();
     </script>
     <partial name="_ValidationScriptsPartial" />

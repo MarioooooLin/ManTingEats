@@ -34,13 +34,27 @@
     </div>
 </div>
 
-<p class="text-muted">統計區間：@Model.StartDate.ToString("yyyy-MM-dd") ～ @Model.EndDate.ToString("yyyy-MM-dd")（僅計入已結帳訂單）</p>
+<p class="text-muted">統計區間：@Model.StartDate.ToString("yyyy-MM-dd") ～ @Model.EndDate.ToString("yyyy-MM-dd")（店內僅計入已結帳訂單；外送數字來自日結時填寫）</p>
+
+@if (Model.UnclosedDayCount > 0)
+{
+    <div class="alert alert-warning">此區間有 @Model.UnclosedDayCount 個營業日尚未日結，這些天的外送營業額與實收未計入。</div>
+}
 
 <div class="row g-3 mb-3">
-    <div class="col-md-4">
+    <div class="col-md-6 col-xl-3">
         <div class="card h-100">
             <div class="card-body">
-                <h6 class="text-muted">總營收</h6>
+                <h6 class="text-muted">總營業額</h6>
+                <p class="display-6 mb-0">$@Model.TotalSales.ToString("F0")</p>
+                <div class="small text-muted mt-1">店內＋外送（外送以平台營業額計）</div>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-6 col-xl-3">
+        <div class="card h-100">
+            <div class="card-body">
+                <h6 class="text-muted">店內營收</h6>
                 <p class="display-6 mb-0">$@Model.TotalRevenue.ToString("F0")</p>
                 @if (Model.TotalDiscount > 0)
                 {
@@ -49,7 +63,7 @@
             </div>
         </div>
     </div>
-    <div class="col-md-4">
+    <div class="col-md-6 col-xl-3">
         <div class="card h-100">
             <div class="card-body">
                 <h6 class="text-muted">總支出</h6>
@@ -57,11 +71,12 @@
             </div>
         </div>
     </div>
-    <div class="col-md-4">
+    <div class="col-md-6 col-xl-3">
         <div class="card h-100">
             <div class="card-body">
                 <h6 class="text-muted">淨利</h6>
                 <p class="display-6 mb-0 @(Model.NetProfit < 0 ? "text-danger" : "")">$@Model.NetProfit.ToString("F0")</p>
+                <div class="small text-muted mt-1">店內營收＋外送實收－支出</div>
             </div>
         </div>
     </div>
@@ -72,7 +87,7 @@
         <div class="card h-100">
             <div class="card-header">通路營收拆分</div>
             <div class="card-body">
-                @if (Model.ChannelBreakdown.Count == 0)
+                @if (Model.ChannelBreakdown.Count == 0 && Model.DeliverySales == 0)
                 {
                     <p class="text-muted mb-0">此區間無已結帳訂單。</p>
                 }
@@ -83,7 +98,9 @@
                         <thead>
                             <tr>
                                 <th>通路</th>
-                                <th class="text-end">金額</th>
+                                <th class="text-end">訂單數</th>
+                                <th class="text-end">營業額</th>
+                                <th class="text-end">實收</th>
                             </tr>
                         </thead>
                         <tbody>
@@ -91,7 +108,19 @@
                             {
                                 <tr>
                                     <td>@channel.Channel.ToDisplayText()</td>
+                                    <td class="text-end">@channel.OrderCount</td>
                                     <td class="text-end">$@channel.Amount.ToString("F0")</td>
+                                    <td class="text-end">$@channel.Amount.ToString("F0")</td>
+                                </tr>
+                            }
+                            @* 外送平台（v18）：實收為平台扣抽成後撥給店家的金額 *@
+                            @foreach (var delivery in Model.DeliveryBreakdown)
+                            {
+                                <tr>
+                                    <td>@delivery.Platform</td>
+                                    <td class="text-end">@delivery.OrderCount</td>
+                                    <td class="text-end">$@delivery.Sales.ToString("F0")</td>
+                                    <td class="text-end">$@delivery.Payout.ToString("F0")</td>
                                 </tr>
                             }
                         </tbody>

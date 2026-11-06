@@ -83,6 +83,51 @@ public sealed class ReportControllerTests : IDisposable
         Assert.Equal(report.TotalRevenue, report.ItemRanking.Sum(i => i.Amount) + report.AddOnRanking.Sum(a => a.Amount));
     }
 
+    private void SeedClosing(DateTime businessDate, decimal uberSales, decimal uberPayout, decimal pandaSales = 0m, decimal pandaPayout = 0m)
+    {
+        using var db = _host.CreateDbContext();
+        db.DailyClosings.Add(new DailyClosing
+        {
+            BusinessDate = businessDate,
+            ClosedByEmployeeId = EmployeeId,
+            UberEatsOrderCount = 1, UberEatsSales = uberSales, UberEatsPayout = uberPayout,
+            FoodpandaOrderCount = 1, FoodpandaSales = pandaSales, FoodpandaPayout = pandaPayout
+        });
+        db.SaveChanges();
+    }
+
+    [Fact]
+    public async Task Index_IncludesDeliveryFromLatestClosing_AndNetProfitUsesPayout()
+    {
+        _host.SeedOrder(OrderStatus.Open, Item(quantity: 3));   // 店內 $300
+        CompleteAll();
+        var today = ManTingEats.Services.TaipeiTime.BusinessToday;
+        SeedClosing(today, uberSales: 999m, uberPayout: 999m);                        // 重結前的舊數字：不採用
+        SeedClosing(today, uberSales: 1000m, uberPayout: 700m, pandaSales: 400m, pandaPayout: 300m);
+
+        var report = await LoadReport();
+
+        var uber = Assert.Single(report.DeliveryBreakdown, d => d.Platform == "Uber Eats");
+        Assert.Equal((1, 1000m, 700m), (uber.OrderCount, uber.Sales, uber.Payout));
+        Assert.Equal(300m, report.TotalRevenue);                 // 店內營收不含外送，品項排行對帳關係不變
+        Assert.Equal(1700m, report.TotalSales);                  // 300 + 1000 + 400
+        Assert.Equal(1300m, report.NetProfit);                   // 300 + 700 + 300 − 0 支出
+        Assert.Equal(0, report.UnclosedDayCount);
+    }
+
+    [Fact]
+    public async Task Index_CountsUnclosedPastDays_ExcludingFuture()
+    {
+        var today = ManTingEats.Services.TaipeiTime.BusinessToday;
+        SeedClosing(today.AddDays(-2), uberSales: 100m, uberPayout: 80m);
+
+        var result = await new ReportController(_host.CreateDbContext()).Index(today.AddDays(-2), today.AddDays(3));
+        var report = Assert.IsType<ReportViewModel>(Assert.IsType<ViewResult>(result).Model);
+
+        Assert.Equal(2, report.UnclosedDayCount);   // 昨天、今天未日結；明天之後不算
+        Assert.Equal(100m, report.DeliverySales);
+    }
+
     [Fact]
     public async Task Index_ExcludesAddOnsOfUncompletedOrders()
     {

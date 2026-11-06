@@ -22,7 +22,8 @@ else
             <thead>
                 <tr>
                     <th>營業日</th>
-                    <th class="text-end">營收</th>
+                    <th class="text-end">店內營收</th>
+                    <th class="text-end">外送營業額</th>
                     <th class="text-end">支出</th>
                     <th class="text-end">應有現金</th>
                     <th class="text-end">實點</th>
@@ -39,6 +40,7 @@ else
                     <tr>
                         <td>@closing.BusinessDate.ToString("yyyy-MM-dd")</td>
                         <td class="text-end">$@closing.Revenue.ToString("F0")</td>
+                        <td class="text-end">$@closing.DeliverySales.ToString("F0")</td>
                         <td class="text-end">$@closing.ExpenseTotal.ToString("F0")</td>
                         <td class="text-end">$@closing.ExpectedCash.ToString("F0")</td>
                         <td class="text-end">$@closing.CountedCash.ToString("F0")</td>

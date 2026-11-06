@@ -69,6 +69,10 @@ public sealed class DailyClosingController : Controller
             ModelState.AddModelError($"Form.{nameof(command.Note)}", "重新日結請填寫原因");
         }
 
+        // 留空視為 0，系統分不出「真的是 0」與「忘了填」；只填一部分會讓總營業額或淨利少算，故同平台三格須一起填（整個平台留空可）
+        ValidateDeliveryComplete("UberEats", "Uber Eats", command.UberEatsOrderCount, command.UberEatsSales, command.UberEatsPayout);
+        ValidateDeliveryComplete("Foodpanda", "foodpanda", command.FoodpandaOrderCount, command.FoodpandaSales, command.FoodpandaPayout);
+
         if (!ModelState.IsValid)
         {
             return View(nameof(Index), model);
@@ -86,6 +90,12 @@ public sealed class DailyClosingController : Controller
             CompletedOrderCount = summary.CompletedOrderCount,
             VoidedOrderCount = summary.VoidedOrderCount,
             CountedCash = command.CountedCash!.Value,
+            UberEatsOrderCount = command.UberEatsOrderCount ?? 0,
+            UberEatsSales = command.UberEatsSales ?? 0,
+            UberEatsPayout = command.UberEatsPayout ?? 0,
+            FoodpandaOrderCount = command.FoodpandaOrderCount ?? 0,
+            FoodpandaSales = command.FoodpandaSales ?? 0,
+            FoodpandaPayout = command.FoodpandaPayout ?? 0,
             Note = string.IsNullOrWhiteSpace(command.Note) ? null : command.Note.Trim(),
             ClosedByEmployeeId = CurrentEmployeeId
         };
@@ -146,6 +156,29 @@ public sealed class DailyClosingController : Controller
         _ => "現金相符"
     };
 
+    private void ValidateDeliveryComplete(string fieldPrefix, string platform, int? orderCount, decimal? sales, decimal? payout)
+    {
+        if (orderCount is null && sales is null && payout is null)
+        {
+            return;
+        }
+
+        if (orderCount is null)
+        {
+            ModelState.AddModelError($"Form.{fieldPrefix}OrderCount", $"{platform} 請一併填寫訂單數（沒單填 0）");
+        }
+
+        if (sales is null)
+        {
+            ModelState.AddModelError($"Form.{fieldPrefix}Sales", $"{platform} 請一併填寫營業額（沒單填 0）");
+        }
+
+        if (payout is null)
+        {
+            ModelState.AddModelError($"Form.{fieldPrefix}Payout", $"{platform} 請一併填寫實收（沒單填 0）");
+        }
+    }
+
     private async Task<DailyClosingViewModel> BuildViewModelAsync(DateTime businessDate, CloseDayCommand? form)
     {
         var dayStartUtc = TaipeiTime.BusinessDayStartUtc(businessDate);
@@ -169,8 +202,12 @@ public sealed class DailyClosingController : Controller
             Summary = await BuildSummaryAsync(businessDate, dayStartUtc, dayEndUtc),
             OpenOrders = openOrders,
             LatestClosing = latest,
-            // 零用金沿用上次日結填的金額（重結時），否則用設定的預設值
-            Form = form ?? new CloseDayCommand(businessDate, latest?.OpeningCash ?? _defaultOpeningCash, null, null)
+            // 零用金沿用上次日結填的金額（重結時），否則用設定的預設值；外送數字重結時也沿用，只需修正有錯的欄位
+            Form = form ?? (latest is null
+                ? new CloseDayCommand(businessDate, _defaultOpeningCash, null, null)
+                : new CloseDayCommand(businessDate, latest.OpeningCash, null, null,
+                    latest.UberEatsOrderCount, latest.UberEatsSales, latest.UberEatsPayout,
+                    latest.FoodpandaOrderCount, latest.FoodpandaSales, latest.FoodpandaPayout))
         };
     }
 

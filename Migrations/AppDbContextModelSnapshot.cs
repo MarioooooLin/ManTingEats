@@ -79,6 +79,17 @@ namespace ManTingEats.Migrations
                         .HasPrecision(10, 2)
                         .HasColumnType("decimal(10,2)");
 
+                    b.Property<int>("FoodpandaOrderCount")
+                        .HasColumnType("int");
+
+                    b.Property<decimal>("FoodpandaPayout")
+                        .HasPrecision(10, 2)
+                        .HasColumnType("decimal(10,2)");
+
+                    b.Property<decimal>("FoodpandaSales")
+                        .HasPrecision(10, 2)
+                        .HasColumnType("decimal(10,2)");
+
                     b.Property<string>("Note")
                         .HasMaxLength(200)
                         .HasColumnType("varchar(200)");
@@ -88,6 +99,17 @@ namespace ManTingEats.Migrations
                         .HasColumnType("decimal(10,2)");
 
                     b.Property<decimal>("Revenue")
+                        .HasPrecision(10, 2)
+                        .HasColumnType("decimal(10,2)");
+
+                    b.Property<int>("UberEatsOrderCount")
+                        .HasColumnType("int");
+
+                    b.Property<decimal>("UberEatsPayout")
+                        .HasPrecision(10, 2)
+                        .HasColumnType("decimal(10,2)");
+
+                    b.Property<decimal>("UberEatsSales")
                         .HasPrecision(10, 2)
                         .HasColumnType("decimal(10,2)");
 

@@ -53,7 +53,7 @@ public sealed class ReportController : Controller
 
         var channelBreakdown = completedOrders
             .GroupBy(o => o.Channel)
-            .Select(g => new ChannelRevenue(g.Key, g.Sum(o => o.AmountDue)))
+            .Select(g => new ChannelRevenue(g.Key, g.Sum(o => o.AmountDue), g.Count()))
             .OrderByDescending(c => c.Amount)
             .ToList();
 
@@ -75,6 +75,23 @@ public sealed class ReportController : Controller
             .OrderByDescending(a => a.Amount)
             .ToList();
 
+        // 外送（v18）金流不經過本系統，數字來自日結時手動填寫；同一營業日重結多次時只取最後一筆（與日結紀錄相同）
+        var latestClosings = await _db.DailyClosings
+            .Where(c => c.BusinessDate >= startDate && c.BusinessDate < endExclusive)
+            .Where(c => c.Id == _db.DailyClosings.Where(x => x.BusinessDate == c.BusinessDate).Max(x => x.Id))
+            .ToListAsync();
+
+        var deliveryBreakdown = new List<DeliveryRevenue>
+        {
+            new("Uber Eats", latestClosings.Sum(c => c.UberEatsOrderCount), latestClosings.Sum(c => c.UberEatsSales), latestClosings.Sum(c => c.UberEatsPayout)),
+            new("foodpanda", latestClosings.Sum(c => c.FoodpandaOrderCount), latestClosings.Sum(c => c.FoodpandaSales), latestClosings.Sum(c => c.FoodpandaPayout))
+        };
+
+        // 未來的營業日還不可能日結，不算進「尚未日結」
+        var lastCountableDate = endDate < TaipeiTime.BusinessToday ? endDate : TaipeiTime.BusinessToday;
+        var countableDays = Math.Max(0, (lastCountableDate - startDate).Days + 1);
+        var unclosedDayCount = countableDays - latestClosings.Count(c => c.BusinessDate <= lastCountableDate);
+
         return View(new ReportViewModel
         {
             StartDate = startDate,
@@ -82,6 +99,8 @@ public sealed class ReportController : Controller
             TotalRevenue = totalRevenue,
             TotalDiscount = totalDiscount,
             TotalExpense = totalExpense,
+            DeliveryBreakdown = deliveryBreakdown,
+            UnclosedDayCount = unclosedDayCount,
             ChannelBreakdown = channelBreakdown,
             ItemRanking = itemRanking,
             AddOnRanking = addOnRanking
